@@ -21,6 +21,7 @@
       "wreck": "5.x.x"
   },
   "devDependencies": {
+    "hapi": "6.x.x",
     "lab": "4.x.x"
   },
   "scripts": {
