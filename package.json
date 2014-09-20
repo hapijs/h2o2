@@ -1,7 +1,7 @@
 {
   "name": "h2o2",
   "description": "Proxy handler for hapi.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": "git://github.com/hapijs/h2o2",
   "main": "index",
   "keywords": [
@@ -14,11 +14,11 @@
     "node": ">=0.10.32"
   },
   "dependencies": {
-      "boom": "2.x.x",
-      "hoek": "2.x.x",
-      "joi": "^4.6.x",
-      "statehood": "^1.2.x",
-      "wreck": "5.x.x"
+    "boom": "2.x.x",
+    "hoek": "2.x.x",
+    "joi": "^4.7.x",
+    "statehood": "^1.2.x",
+    "wreck": "5.x.x"
   },
   "devDependencies": {
     "hapi": "6.x.x",
