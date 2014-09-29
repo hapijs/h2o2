@@ -1101,52 +1101,16 @@ describe('H2o2', function () {
         });
     });
 
-    it('proxies via reply.proxy()', function (done) {
+    it('proxies via uri template', function (done) {
 
         var upstream = new Hapi.Server(0);
         upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/handler', handler: function (request, reply) { reply.proxy({ uri: 'http://localhost:' + upstream.info.port + '/item' }); } });
-
-            server.inject('/handler', function (res) {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('"a":1');
-                done();
-            });
-        });
-    });
-
-    it('proxies via reply.proxy() with uri tempalte', function (done) {
-
-        var upstream = new Hapi.Server(0);
-        upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
-        upstream.start(function () {
-
-            var server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate', handler: function (request, reply) { reply.proxy({ uri: '{protocol}://localhost:' + upstream.info.port + '/item' }); } });
+            server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxyTest: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
 
             server.inject('/handlerTemplate', function (res) {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('"a":1');
-                done();
-            });
-        });
-    });
-
-    it('proxies via reply.proxy() with individual options', function (done) {
-
-        var upstream = new Hapi.Server(0);
-        upstream.route({ method: 'GET', path: '/handlerOldSchool', handler: function (request, reply) { reply({ a: 1 }); } });
-        upstream.start(function () {
-
-            var server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerOldSchool', handler: function (request, reply) { reply.proxy({ host: 'localhost', port: upstream.info.port }); } });
-
-            server.inject('/handlerOldSchool', function (res) {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('"a":1');
