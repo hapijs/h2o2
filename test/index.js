@@ -1324,7 +1324,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a');
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: false } } });
+            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1336,7 +1336,7 @@ describe('H2o2', function () {
         });
     });
 
-    it('includes request cookies defined locally', function (done) {
+    it('includes request cookies defined locally (route level)', function (done) {
 
         var handler = function (request, reply) {
 
@@ -1350,7 +1350,33 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: true });
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: false } } });
+            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: true } } });
+
+            server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
+
+                expect(res.statusCode).to.equal(200);
+                var cookies = JSON.parse(res.payload);
+                expect(cookies).to.deep.equal({ a: '1', b: '2' });
+                done();
+            });
+        });
+    });
+
+    it('includes request cookies defined locally (cookie level)', function (done) {
+
+        var handler = function (request, reply) {
+
+            reply(request.state);
+        };
+
+        var upstream = new Hapi.Server(0);
+        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.start(function () {
+
+            var server = provisionServer();
+            server.state('a', { passThrough: true });
+
+            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1367,7 +1393,7 @@ describe('H2o2', function () {
         var server = provisionServer({ state: { cookies: { failAction: 'ignore' } } });
         server.state('a', { passThrough: true });
 
-        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: 8080, passThrough: true, localStatePassThrough: false } } });
+        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: 8080, passThrough: true } } });
 
         server.inject({ url: '/', headers: { cookie: 'a' } }, function (res) {
 
@@ -1390,7 +1416,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a');
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: false } } });
+            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1' } }, function (res) {
 
