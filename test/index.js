@@ -4,6 +4,7 @@ var Fs = require('fs');
 var Http = require('http');
 var Net = require('net');
 var Zlib = require('zlib');
+var Boom = require('boom');
 var Code = require('code');
 var Hapi = require('hapi');
 var H2o2 = require('..');
@@ -26,10 +27,10 @@ var expect = Code.expect;
 
 describe('H2o2', function () {
 
-    var count = 0;
-    var provisionServer = function (options, name) {
+    var provisionServer = function (options) {
 
-        var server = new Hapi.Server(name || 'domain' + (++count).toString(), options);
+        var server = new Hapi.Server();
+        server.connection(options);
         server.handler('proxyTest', H2o2.handler);
         return server;
     };
@@ -41,7 +42,8 @@ describe('H2o2', function () {
             reply({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/profile', handler: profile, config: { cache: { expiresIn: 2000 } } });
         upstream.start(function () {
 
@@ -149,7 +151,8 @@ describe('H2o2', function () {
 
     it('uses protocol without ":"', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('ok'); } });
         upstream.start(function () {
 
@@ -171,11 +174,11 @@ describe('H2o2', function () {
 
             reply({ status: 'success' })
                 .header('Custom1', 'custom header value 1')
-                .header('X-Custom2', 'custom header value 2')
-                .header('access-control-allow-headers', 'Invalid, List, Of, Values');
+                .header('X-Custom2', 'custom header value 2');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/headers', handler: headers });
         upstream.start(function () {
 
@@ -188,8 +191,29 @@ describe('H2o2', function () {
                 expect(res.payload).to.equal('{\"status\":\"success\"}');
                 expect(res.headers.custom1).to.equal('custom header value 1');
                 expect(res.headers['x-custom2']).to.equal('custom header value 2');
+                done();
+            });
+        });
+    });
+
+    it('overrides upstream cors headers', function (done) {
+
+        var headers = function (request, reply) {
+
+            reply().header('access-control-allow-headers', 'Invalid, List, Of, Values');
+        };
+
+        var upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.route({ method: 'GET', path: '/', handler: headers });
+        upstream.start(function () {
+
+            var server = provisionServer({ cors: { credentials: true, override: true } });
+            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+
+            server.inject('/', function (res) {
+
                 expect(res.headers['access-control-allow-headers']).to.equal('Authorization, Content-Type, If-None-Match');
-                expect(res.headers['access-control-expose-headers']).to.equal('WWW-Authenticate, Server-Authorization');
                 done();
             });
         });
@@ -208,7 +232,8 @@ describe('H2o2', function () {
             reply(res).vary('Something');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/headers', handler: headers });
         upstream.start(function () {
 
@@ -231,7 +256,8 @@ describe('H2o2', function () {
             reply('123456789012345678901234567890123456789012345678901234567890');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/gzip', handler: gzipHandler });
         upstream.start(function () {
 
@@ -259,7 +285,8 @@ describe('H2o2', function () {
             reply.file(__dirname + '/../package.json');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/gzipstream', handler: gzipStreamHandler });
         upstream.start(function () {
 
@@ -293,7 +320,8 @@ describe('H2o2', function () {
                 .header('access-control-allow-headers', 'Invalid, List, Of, Values');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/noHeaders', handler: headers });
         upstream.start(function () {
 
@@ -323,7 +351,8 @@ describe('H2o2', function () {
             });
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/item', handler: activeItem });
         upstream.start(function () {
 
@@ -353,7 +382,8 @@ describe('H2o2', function () {
             reply({ id: '55cf687663', name: 'Items' }).created('http://example.com');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'POST', path: '/item', handler: item });
         upstream.start(function () {
 
@@ -373,10 +403,11 @@ describe('H2o2', function () {
 
         var unauthorized = function (request, reply) {
 
-            reply(Hapi.error.unauthorized('Not authorized'));
+            reply(Boom.unauthorized('Not authorized'));
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/unauthorized', handler: unauthorized });
         upstream.start(function () {
 
@@ -393,7 +424,8 @@ describe('H2o2', function () {
 
     it('sends a 404 status code when a proxied route does not exist', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var server = provisionServer();
@@ -409,12 +441,13 @@ describe('H2o2', function () {
 
     it('overrides status code when a custom onResponse returns an error', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
-                reply(Hapi.error.forbidden('Forbidden'));
+                reply(Boom.forbidden('Forbidden'));
             };
 
             var server = provisionServer();
@@ -430,7 +463,8 @@ describe('H2o2', function () {
 
     it('adds cookie to response', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var on = function (err, res, request, reply, settings, ttl) {
@@ -452,7 +486,8 @@ describe('H2o2', function () {
 
     it('binds onResponse to route bind config', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var onResponseWithError = function (err, res, request, reply, settings, ttl) {
@@ -481,35 +516,36 @@ describe('H2o2', function () {
 
     it('binds onResponse to route bind config in plugin', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var server = provisionServer();
 
-            var plugin = {
-                name: 'test',
-                version: '1.0.0',
-                register: function (plugin, options, next) {
+            var plugin = function (server, options, next) {
 
-                    var onResponseWithError = function (err, res, request, reply, settings, ttl) {
+                var onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
-                        reply(this.c);
-                    };
+                    reply(this.c);
+                };
 
-                    var handler = {
-                        proxyTest: {
-                            host: 'localhost',
-                            port: upstream.info.port,
-                            onResponse: onResponseWithError
-                        }
-                    };
+                var handler = {
+                    proxyTest: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        onResponse: onResponseWithError
+                    }
+                };
 
-                    plugin.route({ method: 'GET', path: '/', config: { handler: handler, bind: { c: 6 } } });
-                    return next();
-                }
+                server.route({ method: 'GET', path: '/', config: { handler: handler, bind: { c: 6 } } });
+                return next();
             };
 
-            server.pack.register(plugin, function (err) {
+            plugin.attributes = {
+                name: 'test'
+            };
+
+            server.register(plugin, function (err) {
 
                 expect(err).to.not.exist();
 
@@ -524,36 +560,37 @@ describe('H2o2', function () {
 
     it('binds onResponse to plugin bind', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var server = provisionServer();
 
-            var plugin = {
-                name: 'test',
-                version: '1.0.0',
-                register: function (plugin, options, next) {
+            var plugin = function (server, options, next) {
 
-                    var onResponseWithError = function (err, res, request, reply, settings, ttl) {
+                var onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
-                        reply(this.c);
-                    };
+                    reply(this.c);
+                };
 
-                    var handler = {
-                        proxyTest: {
-                            host: 'localhost',
-                            port: upstream.info.port,
-                            onResponse: onResponseWithError
-                        }
-                    };
+                var handler = {
+                    proxyTest: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        onResponse: onResponseWithError
+                    }
+                };
 
-                    plugin.bind({ c: 7 });
-                    plugin.route({ method: 'GET', path: '/', config: { handler: handler } });
-                    return next();
-                }
+                server.bind({ c: 7 });
+                server.route({ method: 'GET', path: '/', config: { handler: handler } });
+                return next();
             };
 
-            server.pack.register(plugin, function (err) {
+            plugin.attributes = {
+                name: 'test'
+            };
+
+            server.register(plugin, function (err) {
 
                 expect(err).to.not.exist();
 
@@ -568,36 +605,37 @@ describe('H2o2', function () {
 
     it('binds onResponse to route bind config in plugin when plugin also has bind', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.start(function () {
 
             var server = provisionServer();
 
-            var plugin = {
-                name: 'test',
-                version: '1.0.0',
-                register: function (plugin, options, next) {
+            var plugin = function (server, options, next) {
 
-                    var onResponseWithError = function (err, res, request, reply, settings, ttl) {
+                var onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
-                        reply(this.c);
-                    };
+                    reply(this.c);
+                };
 
-                    var handler = {
-                        proxyTest: {
-                            host: 'localhost',
-                            port: upstream.info.port,
-                            onResponse: onResponseWithError
-                        }
-                    };
+                var handler = {
+                    proxyTest: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        onResponse: onResponseWithError
+                    }
+                };
 
-                    plugin.bind({ c: 7 });
-                    plugin.route({ method: 'GET', path: '/', config: { handler: handler, bind: { c: 4 } } });
-                    return next();
-                }
+                server.bind({ c: 7 });
+                server.route({ method: 'GET', path: '/', config: { handler: handler, bind: { c: 4 } } });
+                return next();
             };
 
-            server.pack.register(plugin, function (err) {
+            plugin.attributes = {
+                name: 'test'
+            };
+
+            server.register(plugin, function (err) {
 
                 expect(err).to.not.exist();
 
@@ -612,7 +650,8 @@ describe('H2o2', function () {
 
     it('calls the onResponse function if the upstream is unreachable', function (done) {
 
-        var dummy = new Hapi.Server(0);
+        var dummy = new Hapi.Server();
+        dummy.connection();
         dummy.start(function () {
 
             var dummyPort = dummy.info.port;
@@ -641,7 +680,8 @@ describe('H2o2', function () {
             reply(request.raw.req.headers);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -650,7 +690,7 @@ describe('H2o2', function () {
                 return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/');
             };
 
-            var server = provisionServer(0, '127.0.0.1');
+            var server = provisionServer({ host: '127.0.0.1' });
             server.route({ method: 'GET', path: '/', handler: { proxyTest: { mapUri: mapUri, xforward: true } } });
 
             server.start(function () {
@@ -684,7 +724,8 @@ describe('H2o2', function () {
             reply(request.raw.req.headers);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -699,7 +740,7 @@ describe('H2o2', function () {
                 return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/', headers);
             };
 
-            var server = provisionServer(0, '127.0.0.1');
+            var server = provisionServer({ host: '127.0.0.1' });
             server.route({ method: 'GET', path: '/', handler: { proxyTest: { mapUri: mapUri, xforward: true } } });
 
             server.start(function () {
@@ -733,7 +774,8 @@ describe('H2o2', function () {
             reply(request.raw.req.headers);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -770,7 +812,8 @@ describe('H2o2', function () {
             reply(request.payload.echo + request.raw.req.headers['x-super-special']);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'POST', path: '/echo', handler: echoPostBody });
         upstream.start(function () {
 
@@ -815,7 +858,8 @@ describe('H2o2', function () {
             reply.redirect('/redirect?x=1');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
         upstream.start(function () {
 
@@ -837,7 +881,8 @@ describe('H2o2', function () {
             reply().code(302);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
         upstream.start(function () {
 
@@ -888,7 +933,8 @@ describe('H2o2', function () {
             reply({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
         upstream.route({ method: 'GET', path: '/profile', handler: profile, config: { cache: { expiresIn: 2000 } } });
         upstream.start(function () {
@@ -919,7 +965,8 @@ describe('H2o2', function () {
             reply({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
         upstream.route({ method: 'GET', path: '/profile', handler: profile, config: { cache: { expiresIn: 2000 } } });
         upstream.start(function () {
@@ -940,7 +987,8 @@ describe('H2o2', function () {
 
     it('redirects to a post endpoint with stream', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'POST', path: '/post1', handler: function (request, reply) { reply.redirect('/post2').rewritable(false); } });
         upstream.route({ method: 'POST', path: '/post2', handler: function (request, reply) { reply(request.payload); } });
         upstream.start(function () {
@@ -959,7 +1007,8 @@ describe('H2o2', function () {
 
     it('errors when proxied request times out', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/timeout1', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
         upstream.start(function () {
 
@@ -976,7 +1025,8 @@ describe('H2o2', function () {
 
     it('uses default timeout when nothing is set', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/timeout2', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
         upstream.start(function () {
 
@@ -998,7 +1048,8 @@ describe('H2o2', function () {
             cert: '-----BEGIN CERTIFICATE-----\nMIIDBjCCAe4CCQDvLNml6smHlTANBgkqhkiG9w0BAQUFADBFMQswCQYDVQQGEwJV\nUzETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0\ncyBQdHkgTHRkMB4XDTE0MDEyNTIxMjIxOFoXDTE1MDEyNTIxMjIxOFowRTELMAkG\nA1UEBhMCVVMxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0\nIFdpZGdpdHMgUHR5IEx0ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\nANFKslwwqlgyqaDUECv33a9DpBuIFug1Gn8Xbnx/RppF/86Cs4P0hS6z4qc0hiDS\nlrcjL6O5j416qlYBNdCwyN1RVfCEen5wEU/gBfAluRzATxrf7H0FuFuKbrwR5AcV\nkltRL23nIDRCEvYUxrx15Bc5uMSdnvQx6dsaFQI0RAu9weyWxYXOWRhnISsPghZg\nIjcrFNA5gYEHGnNHoNqVqE/mBpk3kI+rEVzuu59scv4QNQ7jegOFgSt8DNzuAZ0x\ntHTW1lBG3u8gG1eYBMquexoSSHmMUb73lQ2l/dC6AKjOHFB9Ouq3IjjdFGwx1diz\n/yWh+Y8wY1Mgpyiy6ObJ5W8CAwEAATANBgkqhkiG9w0BAQUFAAOCAQEAoSc6Skb4\ng1e0ZqPKXBV2qbx7hlqIyYpubCl1rDiEdVzqYYZEwmst36fJRRrVaFuAM/1DYAmT\nWMhU+yTfA+vCS4tql9b9zUhPw/IDHpBDWyR01spoZFBF/hE1MGNpCSXXsAbmCiVf\naxrIgR2DNketbDxkQx671KwF1+1JOMo9ffXp+OhuRo5NaGIxhTsZ+f/MA4y084Aj\nDI39av50sTRTWWShlN+J7PtdQVA5SZD97oYbeUeL7gI18kAJww9eUdmT0nEjcwKs\nxsQT1fyKbo7AlZBY4KSlUMuGnn0VnAsB9b+LxtXlDfnjyM8bVQx1uAfRo0DO8p/5\n3J5DTjAU55deBQ==\n-----END CERTIFICATE-----\n'
         };
 
-        var upstream = new Hapi.Server(0, { tls: tlsOptions });
+        var upstream = new Hapi.Server();
+        upstream.connection({ tls: tlsOptions });
         upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('Ok'); } });
         upstream.start(function () {
 
@@ -1025,7 +1076,8 @@ describe('H2o2', function () {
             cert: '-----BEGIN CERTIFICATE-----\nMIIDBjCCAe4CCQDvLNml6smHlTANBgkqhkiG9w0BAQUFADBFMQswCQYDVQQGEwJV\nUzETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0\ncyBQdHkgTHRkMB4XDTE0MDEyNTIxMjIxOFoXDTE1MDEyNTIxMjIxOFowRTELMAkG\nA1UEBhMCVVMxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0\nIFdpZGdpdHMgUHR5IEx0ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\nANFKslwwqlgyqaDUECv33a9DpBuIFug1Gn8Xbnx/RppF/86Cs4P0hS6z4qc0hiDS\nlrcjL6O5j416qlYBNdCwyN1RVfCEen5wEU/gBfAluRzATxrf7H0FuFuKbrwR5AcV\nkltRL23nIDRCEvYUxrx15Bc5uMSdnvQx6dsaFQI0RAu9weyWxYXOWRhnISsPghZg\nIjcrFNA5gYEHGnNHoNqVqE/mBpk3kI+rEVzuu59scv4QNQ7jegOFgSt8DNzuAZ0x\ntHTW1lBG3u8gG1eYBMquexoSSHmMUb73lQ2l/dC6AKjOHFB9Ouq3IjjdFGwx1diz\n/yWh+Y8wY1Mgpyiy6ObJ5W8CAwEAATANBgkqhkiG9w0BAQUFAAOCAQEAoSc6Skb4\ng1e0ZqPKXBV2qbx7hlqIyYpubCl1rDiEdVzqYYZEwmst36fJRRrVaFuAM/1DYAmT\nWMhU+yTfA+vCS4tql9b9zUhPw/IDHpBDWyR01spoZFBF/hE1MGNpCSXXsAbmCiVf\naxrIgR2DNketbDxkQx671KwF1+1JOMo9ffXp+OhuRo5NaGIxhTsZ+f/MA4y084Aj\nDI39av50sTRTWWShlN+J7PtdQVA5SZD97oYbeUeL7gI18kAJww9eUdmT0nEjcwKs\nxsQT1fyKbo7AlZBY4KSlUMuGnn0VnAsB9b+LxtXlDfnjyM8bVQx1uAfRo0DO8p/5\n3J5DTjAU55deBQ==\n-----END CERTIFICATE-----\n'
         };
 
-        var upstream = new Hapi.Server(0, { tls: tlsOptions });
+        var upstream = new Hapi.Server();
+        upstream.connection({ tls: tlsOptions });
         upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('Ok'); } });
         upstream.start(function () {
 
@@ -1051,7 +1103,8 @@ describe('H2o2', function () {
             cert: '-----BEGIN CERTIFICATE-----\nMIIDBjCCAe4CCQDvLNml6smHlTANBgkqhkiG9w0BAQUFADBFMQswCQYDVQQGEwJV\nUzETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0\ncyBQdHkgTHRkMB4XDTE0MDEyNTIxMjIxOFoXDTE1MDEyNTIxMjIxOFowRTELMAkG\nA1UEBhMCVVMxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0\nIFdpZGdpdHMgUHR5IEx0ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\nANFKslwwqlgyqaDUECv33a9DpBuIFug1Gn8Xbnx/RppF/86Cs4P0hS6z4qc0hiDS\nlrcjL6O5j416qlYBNdCwyN1RVfCEen5wEU/gBfAluRzATxrf7H0FuFuKbrwR5AcV\nkltRL23nIDRCEvYUxrx15Bc5uMSdnvQx6dsaFQI0RAu9weyWxYXOWRhnISsPghZg\nIjcrFNA5gYEHGnNHoNqVqE/mBpk3kI+rEVzuu59scv4QNQ7jegOFgSt8DNzuAZ0x\ntHTW1lBG3u8gG1eYBMquexoSSHmMUb73lQ2l/dC6AKjOHFB9Ouq3IjjdFGwx1diz\n/yWh+Y8wY1Mgpyiy6ObJ5W8CAwEAATANBgkqhkiG9w0BAQUFAAOCAQEAoSc6Skb4\ng1e0ZqPKXBV2qbx7hlqIyYpubCl1rDiEdVzqYYZEwmst36fJRRrVaFuAM/1DYAmT\nWMhU+yTfA+vCS4tql9b9zUhPw/IDHpBDWyR01spoZFBF/hE1MGNpCSXXsAbmCiVf\naxrIgR2DNketbDxkQx671KwF1+1JOMo9ffXp+OhuRo5NaGIxhTsZ+f/MA4y084Aj\nDI39av50sTRTWWShlN+J7PtdQVA5SZD97oYbeUeL7gI18kAJww9eUdmT0nEjcwKs\nxsQT1fyKbo7AlZBY4KSlUMuGnn0VnAsB9b+LxtXlDfnjyM8bVQx1uAfRo0DO8p/5\n3J5DTjAU55deBQ==\n-----END CERTIFICATE-----\n'
         };
 
-        var upstream = new Hapi.Server(0, { tls: tlsOptions });
+        var upstream = new Hapi.Server();
+        upstream.connection({ tls: tlsOptions });
         upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('Ok'); } });
         upstream.start(function () {
 
@@ -1072,7 +1125,8 @@ describe('H2o2', function () {
 
     it('times out when proxy timeout is less than server', { parallel: false }, function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/timeout2', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
         upstream.start(function () {
 
@@ -1088,7 +1142,8 @@ describe('H2o2', function () {
 
     it('times out when server timeout is less than proxy', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/timeout1', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
         upstream.start(function () {
 
@@ -1104,7 +1159,8 @@ describe('H2o2', function () {
 
     it('proxies via uri template', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
         upstream.start(function () {
 
@@ -1122,7 +1178,8 @@ describe('H2o2', function () {
 
     it('passes upstream caching headers', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/cachedItem', handler: function (request, reply) { reply({ a: 1 }); }, config: { cache: { expiresIn: 2000 } } });
         upstream.start(function () {
 
@@ -1185,7 +1242,8 @@ describe('H2o2', function () {
 
     it('overrides response code with 304', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
         upstream.start(function () {
 
@@ -1208,7 +1266,8 @@ describe('H2o2', function () {
 
     it('cleans up when proxy response replaced in onPreResponse', function (done) {
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
         upstream.start(function () {
 
@@ -1236,7 +1295,8 @@ describe('H2o2', function () {
             reply(request.headers['accept-encoding']);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: profile, config: { cache: { expiresIn: 2000 } } });
         upstream.start(function () {
 
@@ -1259,7 +1319,8 @@ describe('H2o2', function () {
             reply(request.headers['accept-encoding']);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: profile, config: { cache: { expiresIn: 2000 } } });
         upstream.start(function () {
 
@@ -1318,7 +1379,8 @@ describe('H2o2', function () {
             reply(request.state);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -1344,7 +1406,8 @@ describe('H2o2', function () {
             reply(request.state);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -1370,7 +1433,8 @@ describe('H2o2', function () {
             reply(request.state);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -1410,7 +1474,8 @@ describe('H2o2', function () {
             reply(request.state);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
@@ -1436,7 +1501,8 @@ describe('H2o2', function () {
             reply(request.state);
         };
 
-        var upstream = new Hapi.Server(0);
+        var upstream = new Hapi.Server();
+        upstream.connection();
         upstream.route({ method: 'GET', path: '/', handler: handler });
         upstream.start(function () {
 
