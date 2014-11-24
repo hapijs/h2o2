@@ -1130,7 +1130,7 @@ describe('H2o2', function () {
         upstream.route({ method: 'GET', path: '/timeout2', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
         upstream.start(function () {
 
-            var server = provisionServer({ timeout: { server: 8 } });
+            var server = provisionServer({ routes: { timeout: { server: 8 } } });
             server.route({ method: 'GET', path: '/timeout2', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
             server.inject('/timeout2', function (res) {
 
@@ -1147,7 +1147,7 @@ describe('H2o2', function () {
         upstream.route({ method: 'GET', path: '/timeout1', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
         upstream.start(function () {
 
-            var server = provisionServer({ timeout: { server: 5 } });
+            var server = provisionServer({ routes: { timeout: { server: 5 } } });
             server.route({ method: 'GET', path: '/timeout1', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
             server.inject('/timeout1', function (res) {
 
