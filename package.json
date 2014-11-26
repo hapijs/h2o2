@@ -17,7 +17,6 @@
     "boom": "2.x.x",
     "hoek": "2.x.x",
     "joi": "^4.7.x",
-    "statehood": "^1.2.x",
     "wreck": "5.x.x"
   },
   "devDependencies": {

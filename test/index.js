@@ -35,6 +35,36 @@ describe('H2o2', function () {
         return server;
     };
 
+    it('overrides maxSockets', { parallel: false }, function (done) {
+
+        var orig = Wreck.request;
+        Wreck.request = function (method, uri, options, callback) {
+
+            Wreck.request = orig;
+            expect(options.agent.maxSockets).to.equal(213);
+            done();
+        };
+
+        var server = provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', maxSockets: 213 } } });
+        server.inject('/', function (res) { });
+    });
+
+    it('uses node default with maxSockets set to false', { parallel: false }, function (done) {
+
+        var orig = Wreck.request;
+        Wreck.request = function (method, uri, options, callback) {
+
+            Wreck.request = orig;
+            expect(options.agent).to.equal(undefined);
+            done();
+        };
+
+        var server = provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', maxSockets: false } } });
+        server.inject('/', function (res) { });
+    });
+
     it('forwards on the response when making a GET request', function (done) {
 
         var profile = function (request, reply) {
@@ -182,7 +212,7 @@ describe('H2o2', function () {
         upstream.route({ method: 'GET', path: '/headers', handler: headers });
         upstream.start(function () {
 
-            var server = provisionServer({ cors: true });
+            var server = provisionServer({ routes: { cors: true } });
             server.route({ method: 'GET', path: '/headers', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject('/headers', function (res) {
@@ -208,7 +238,7 @@ describe('H2o2', function () {
         upstream.route({ method: 'GET', path: '/', handler: headers });
         upstream.start(function () {
 
-            var server = provisionServer({ cors: { credentials: true, override: true } });
+            var server = provisionServer({ routes: { cors: { credentials: true, override: true } } });
             server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject('/', function (res) {
@@ -1336,11 +1366,11 @@ describe('H2o2', function () {
         });
     });
 
-    it('does not send multiple Content-Type headers on passthrough', function (done) {
+    it('does not send multiple Content-Type headers on passthrough', { parallel: false }, function (done) {
 
         var server = provisionServer();
-        var requestFn = Wreck.request;
 
+        var requestFn = Wreck.request;
         Wreck.request = function (method, url, options, cb) {
 
             Wreck.request = requestFn;
@@ -1358,9 +1388,9 @@ describe('H2o2', function () {
     it('allows passing in an agent through to Wreck', { parallel: false }, function (done) {
 
         var server = provisionServer();
-        var requestFn = Wreck.request;
         var agent = { name: 'myagent' };
 
+        var requestFn = Wreck.request;
         Wreck.request = function (method, url, options, cb) {
 
             Wreck.request = requestFn;
@@ -1455,7 +1485,7 @@ describe('H2o2', function () {
 
     it('errors on invalid cookie header', function (done) {
 
-        var server = provisionServer({ state: { cookies: { failAction: 'ignore' } } });
+        var server = provisionServer({ routes: { state: { failAction: 'ignore' } } });
         server.state('a', { passThrough: true });
 
         server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: 8080, passThrough: true } } });
@@ -1498,7 +1528,7 @@ describe('H2o2', function () {
 
         var handler = function (request, reply) {
 
-            reply(request.state);
+            return reply(request.state);
         };
 
         var upstream = new Hapi.Server();
@@ -1519,36 +1549,6 @@ describe('H2o2', function () {
                 done();
             });
         });
-    });
-
-    it('overrides maxSockets', { parallel: false }, function (done) {
-
-        var orig = Wreck.request;
-        Wreck.request = function (method, uri, options, callback) {
-
-            Wreck.request = orig;
-            expect(options.agent.maxSockets).to.equal(213);
-            done();
-        };
-
-        var server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', maxSockets: 213 } } });
-        server.inject('/', function (res) { });
-    });
-
-    it('uses node default with maxSockets set to false', { parallel: false }, function (done) {
-
-        var orig = Wreck.request;
-        Wreck.request = function (method, uri, options, callback) {
-
-            Wreck.request = orig;
-            expect(options.agent).to.equal(undefined);
-            done();
-        };
-
-        var server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', maxSockets: false } } });
-        server.inject('/', function (res) { });
     });
 });
 
