@@ -6,8 +6,9 @@ var Net = require('net');
 var Zlib = require('zlib');
 var Boom = require('boom');
 var Code = require('code');
-var Hapi = require('hapi');
 var H2o2 = require('..');
+var Hapi = require('hapi');
+var Hoek = require('hoek');
 var Lab = require('lab');
 var Wreck = require('wreck');
 
@@ -29,9 +30,9 @@ describe('H2o2', function () {
 
     var provisionServer = function (options) {
 
-        var server = new Hapi.Server();
+        var server = new Hapi.Server({ minimal: true });
         server.connection(options);
-        server.handler('proxyTest', H2o2.handler);
+        server.register(H2o2, Hoek.ignore);
         return server;
     };
 
@@ -46,7 +47,7 @@ describe('H2o2', function () {
         };
 
         var server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', maxSockets: 213 } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: 213 } } });
         server.inject('/', function (res) { });
     });
 
@@ -61,7 +62,7 @@ describe('H2o2', function () {
         };
 
         var server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', maxSockets: false } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: false } } });
         server.inject('/', function (res) { });
     });
 
@@ -78,7 +79,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/profile', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
+            server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/profile', function (res) {
@@ -108,7 +109,7 @@ describe('H2o2', function () {
                 path: '/',
                 config: {
                     handler: {
-                        proxyTest: { host: 'example.com' }
+                        proxy: { host: 'example.com' }
                     },
                     payload: {
                         output: 'file'
@@ -129,7 +130,7 @@ describe('H2o2', function () {
                 path: '/',
                 config: {
                     handler: {
-                        proxyTest: { some: 'key' }
+                        proxy: { some: 'key' }
                     }
                 }
             });
@@ -147,7 +148,7 @@ describe('H2o2', function () {
                 path: '/',
                 config: {
                     handler: {
-                        proxyTest: { host: 'example.com' }
+                        proxy: { host: 'example.com' }
                     },
                     payload: {
                         parse: true
@@ -168,7 +169,7 @@ describe('H2o2', function () {
                 path: '/',
                 config: {
                     handler: {
-                        proxyTest: { host: 'example.com' }
+                        proxy: { host: 'example.com' }
                     },
                     payload: {
                         output: 'data'
@@ -187,7 +188,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
 
             server.inject('/', function (res) {
 
@@ -213,7 +214,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer({ routes: { cors: true } });
-            server.route({ method: 'GET', path: '/headers', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject('/headers', function (res) {
 
@@ -239,7 +240,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer({ routes: { cors: { credentials: true, override: true } } });
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject('/', function (res) {
 
@@ -268,7 +269,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/headers', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse: onResponse } } });
+            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse: onResponse } } });
 
             server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } }, function (res) {
 
@@ -292,7 +293,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/gzip', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             Zlib.gzip(new Buffer('123456789012345678901234567890123456789012345678901234567890'), function (err, zipped) {
 
@@ -321,7 +322,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/gzipstream', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/gzipstream', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/gzipstream', headers: { 'accept-encoding': 'gzip' } }, function (res) {
 
@@ -356,7 +357,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/noHeaders', handler: { proxyTest: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'GET', path: '/noHeaders', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/noHeaders', function (res) {
 
@@ -387,7 +388,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/item', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
+            server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
 
             server.inject('/item', function (res) {
 
@@ -418,7 +419,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'POST', path: '/item', handler: { proxyTest: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'POST', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject({ url: '/item', method: 'POST' }, function (res) {
 
@@ -442,7 +443,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/unauthorized', handler: { proxyTest: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
+            server.route({ method: 'GET', path: '/unauthorized', handler: { proxy: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
 
             server.inject('/unauthorized', function (res) {
 
@@ -459,7 +460,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'POST', path: '/notfound', handler: { proxyTest: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'POST', path: '/notfound', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/notfound', function (res) {
 
@@ -481,7 +482,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/onResponseError', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
+            server.route({ method: 'GET', path: '/onResponseError', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
 
             server.inject('/onResponseError', function (res) {
 
@@ -503,7 +504,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
 
             server.inject('/', function (res) {
 
@@ -526,7 +527,7 @@ describe('H2o2', function () {
             };
 
             var handler = {
-                proxyTest: {
+                proxy: {
                     host: 'localhost',
                     port: upstream.info.port,
                     onResponse: onResponseWithError
@@ -560,7 +561,7 @@ describe('H2o2', function () {
                 };
 
                 var handler = {
-                    proxyTest: {
+                    proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         onResponse: onResponseWithError
@@ -604,7 +605,7 @@ describe('H2o2', function () {
                 };
 
                 var handler = {
-                    proxyTest: {
+                    proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         onResponse: onResponseWithError
@@ -649,7 +650,7 @@ describe('H2o2', function () {
                 };
 
                 var handler = {
-                    proxyTest: {
+                    proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         onResponse: onResponseWithError
@@ -693,7 +694,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/failureResponse', handler: { proxyTest: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+            server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
             server.inject('/failureResponse', function (res) {
 
@@ -721,7 +722,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer({ host: '127.0.0.1' });
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { mapUri: mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri: mapUri, xforward: true } } });
 
             server.start(function () {
 
@@ -771,7 +772,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer({ host: '127.0.0.1' });
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { mapUri: mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri: mapUri, xforward: true } } });
 
             server.start(function () {
 
@@ -821,7 +822,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { mapUri: mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri: mapUri, xforward: true } } });
 
             server.inject('/', function (res) {
 
@@ -853,7 +854,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'POST', path: '/echo', handler: { proxyTest: { mapUri: mapUri } } });
+            server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri: mapUri } } });
 
             server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' }, function (res) {
 
@@ -872,7 +873,7 @@ describe('H2o2', function () {
         };
 
         var server = provisionServer();
-        server.route({ method: 'GET', path: '/maperror', handler: { proxyTest: { mapUri: mapUriWithError } } });
+        server.route({ method: 'GET', path: '/maperror', handler: { proxy: { mapUri: mapUriWithError } } });
 
         server.inject('/maperror', function (res) {
 
@@ -894,7 +895,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
             server.inject('/redirect?x=1', function (res) {
 
@@ -917,7 +918,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
             server.inject('/redirect?x=3', function (res) {
 
@@ -930,7 +931,7 @@ describe('H2o2', function () {
     it('errors on redirection to bad host', function (done) {
 
         var server = provisionServer();
-        server.route({ method: 'GET', path: '/nowhere', handler: { proxyTest: { host: 'no.such.domain.x8' } } });
+        server.route({ method: 'GET', path: '/nowhere', handler: { proxy: { host: 'no.such.domain.x8' } } });
 
         server.inject('/nowhere', function (res) {
 
@@ -942,7 +943,7 @@ describe('H2o2', function () {
     it('errors on redirection to bad host (https)', function (done) {
 
         var server = provisionServer();
-        server.route({ method: 'GET', path: '/nowhere', handler: { proxyTest: { host: 'no.such.domain.x8', protocol: 'https' } } });
+        server.route({ method: 'GET', path: '/nowhere', handler: { proxy: { host: 'no.such.domain.x8', protocol: 'https' } } });
 
         server.inject('/nowhere', function (res) {
 
@@ -970,7 +971,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/redirect', function (res) {
@@ -1002,7 +1003,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/redirect?x=2', function (res) {
@@ -1024,7 +1025,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'POST', path: '/post1', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
+            server.route({ method: 'POST', path: '/post1', handler: { proxy: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
 
             server.inject({ method: 'POST', url: '/post1', payload: 'test', headers: { 'content-type': 'text/plain' } }, function (res) {
 
@@ -1043,7 +1044,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/timeout1', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
+            server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
 
             server.inject('/timeout1', function (res) {
 
@@ -1061,7 +1062,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/timeout2', handler: { proxyTest: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/timeout2', function (res) {
 
@@ -1089,7 +1090,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/allow', handler: { proxyTest: { mapUri: mapSslUri, rejectUnauthorized: false } } });
+            server.route({ method: 'GET', path: '/allow', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: false } } });
             server.inject('/allow', function (res) {
 
                 expect(res.statusCode).to.equal(200);
@@ -1117,7 +1118,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/reject', handler: { proxyTest: { mapUri: mapSslUri, rejectUnauthorized: true } } });
+            server.route({ method: 'GET', path: '/reject', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: true } } });
             server.inject('/reject', function (res) {
 
                 expect(res.statusCode).to.equal(502);
@@ -1144,7 +1145,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/sslDefault', handler: { proxyTest: { mapUri: mapSslUri } } });
+            server.route({ method: 'GET', path: '/sslDefault', handler: { proxy: { mapUri: mapSslUri } } });
             server.inject('/sslDefault', function (res) {
 
                 expect(res.statusCode).to.equal(502);
@@ -1161,7 +1162,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer({ routes: { timeout: { server: 8 } } });
-            server.route({ method: 'GET', path: '/timeout2', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
+            server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
             server.inject('/timeout2', function (res) {
 
                 expect(res.statusCode).to.equal(504);
@@ -1178,7 +1179,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer({ routes: { timeout: { server: 5 } } });
-            server.route({ method: 'GET', path: '/timeout1', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
+            server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
             server.inject('/timeout1', function (res) {
 
                 expect(res.statusCode).to.equal(503);
@@ -1195,7 +1196,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxyTest: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
+            server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
 
             server.inject('/handlerTemplate', function (res) {
 
@@ -1214,7 +1215,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/cachedItem', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
+            server.route({ method: 'GET', path: '/cachedItem', handler: { proxy: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/cachedItem', function (res) {
@@ -1236,7 +1237,7 @@ describe('H2o2', function () {
         upstream.listen(0, function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
 
             server.inject('/', function (res) {
 
@@ -1258,7 +1259,7 @@ describe('H2o2', function () {
         upstream.listen(0, function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
 
             server.inject('/', function (res) {
 
@@ -1283,7 +1284,7 @@ describe('H2o2', function () {
             };
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/304', handler: { proxyTest: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
+            server.route({ method: 'GET', path: '/304', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
 
             server.inject('/304', function (res) {
 
@@ -1307,7 +1308,7 @@ describe('H2o2', function () {
                 reply({ something: 'else' });
             });
 
-            server.route({ method: 'GET', path: '/item', handler: { proxyTest: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/item', function (res) {
 
@@ -1331,7 +1332,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
 
             server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } }, function (res) {
 
@@ -1355,7 +1356,7 @@ describe('H2o2', function () {
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
 
             server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } }, function (res) {
 
@@ -1378,7 +1379,7 @@ describe('H2o2', function () {
             expect(options.headers['Content-Type']).to.not.exist();
             cb(new Error('placeholder'));
         };
-        server.route({ method: 'GET', path: '/test', handler: { proxyTest: { uri: 'http://localhost', passThrough: true } } });
+        server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://localhost', passThrough: true } } });
         server.inject({ method: 'GET', url: '/test', headers: { 'Content-Type': 'application/json' } }, function (res) {
 
             done();
@@ -1398,7 +1399,7 @@ describe('H2o2', function () {
             done();
 
         };
-        server.route({ method: 'GET', path: '/agenttest', handler: { proxyTest: { uri: 'http://localhost', agent: agent } } });
+        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', agent: agent } } });
         server.inject({ method: 'GET', url: '/agenttest', headers: {} }, function (res) { });
     });
 
@@ -1417,7 +1418,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a');
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1444,7 +1445,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: true });
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1471,7 +1472,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: true });
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1488,7 +1489,7 @@ describe('H2o2', function () {
         var server = provisionServer({ routes: { state: { failAction: 'ignore' } } });
         server.state('a', { passThrough: true });
 
-        server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: 8080, passThrough: true } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: 8080, passThrough: true } } });
 
         server.inject({ url: '/', headers: { cookie: 'a' } }, function (res) {
 
@@ -1512,7 +1513,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a');
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1' } }, function (res) {
 
@@ -1539,7 +1540,7 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: false });
 
-            server.route({ method: 'GET', path: '/', handler: { proxyTest: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1550,5 +1551,23 @@ describe('H2o2', function () {
             });
         });
     });
-});
 
+    it('uses reply decorator', function (done) {
+
+        var upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('ok'); } });
+        upstream.start(function () {
+
+            var server = provisionServer();
+            server.route({ method: 'GET', path: '/', handler: function (request, reply) { return reply.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true }); } });
+
+            server.inject('/', function (res) {
+
+                expect(res.statusCode).to.equal(200);
+                expect(res.payload).to.equal('ok');
+                done();
+            });
+        });
+    });
+});
