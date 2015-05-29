@@ -184,7 +184,15 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('ok'); } });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, reply) {
+
+                return reply('ok');
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
@@ -1020,8 +1028,24 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'POST', path: '/post1', handler: function (request, reply) { reply.redirect('/post2').rewritable(false); } });
-        upstream.route({ method: 'POST', path: '/post2', handler: function (request, reply) { reply(request.payload); } });
+        upstream.route({
+            method: 'POST',
+            path: '/post1',
+            handler: function (request, reply) {
+
+                return reply.redirect('/post2').rewritable(false);
+            }
+        });
+
+        upstream.route({
+            method: 'POST',
+            path: '/post2',
+            handler: function (request, reply) {
+
+                return reply(request.payload);
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
@@ -1040,7 +1064,18 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/timeout1', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
+        upstream.route({
+            method: 'GET',
+            path: '/timeout1',
+            handler: function (request, reply) {
+
+                setTimeout(function () {
+
+                    return reply('Ok');
+                }, 10);
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
@@ -1058,7 +1093,19 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/timeout2', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
+        upstream.route({
+
+            method: 'GET',
+            path: '/timeout2',
+            handler: function (request, reply) {
+
+                setTimeout(function () {
+
+                    return reply('Ok');
+                }, 10);
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
@@ -1081,7 +1128,15 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection({ tls: tlsOptions });
-        upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('Ok'); } });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, reply) {
+
+                return reply('Ok');
+            }
+        });
+
         upstream.start(function () {
 
             var mapSslUri = function (request, callback) {
@@ -1109,7 +1164,15 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection({ tls: tlsOptions });
-        upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('Ok'); } });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, reply) {
+
+                return reply('Ok');
+            }
+        });
+
         upstream.start(function () {
 
             var mapSslUri = function (request, callback) {
@@ -1136,7 +1199,15 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection({ tls: tlsOptions });
-        upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('Ok'); } });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, reply) {
+
+                return reply('Ok');
+            }
+        });
+
         upstream.start(function () {
 
             var mapSslUri = function (request, callback) {
@@ -1158,7 +1229,18 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/timeout2', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
+        upstream.route({
+            method: 'GET',
+            path: '/timeout2',
+            handler: function (request, reply) {
+
+                setTimeout(function () {
+
+                    return reply('Ok');
+                }, 10);
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer({ routes: { timeout: { server: 8 } } });
@@ -1175,7 +1257,18 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/timeout1', handler: function (request, reply) { setTimeout(function () { reply('Ok'); }, 10); } });
+        upstream.route({
+            method: 'GET',
+            path: '/timeout1',
+            handler: function (request, reply) {
+
+                setTimeout(function () {
+
+                    return reply('Ok');
+                }, 10);
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer({ routes: { timeout: { server: 5 } } });
@@ -1192,7 +1285,15 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
+        upstream.route({
+            method: 'GET',
+            path: '/item',
+            handler: function (request, reply) {
+
+                return reply({ a: 1 });
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
@@ -1211,7 +1312,20 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/cachedItem', handler: function (request, reply) { reply({ a: 1 }); }, config: { cache: { expiresIn: 2000 } } });
+        upstream.route({
+            method: 'GET',
+            path: '/cachedItem',
+            handler: function (request, reply) {
+
+                return reply({ a: 1 });
+            },
+            config: {
+                cache: {
+                    expiresIn: 2000
+                }
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
@@ -1265,7 +1379,6 @@ describe('H2o2', function () {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.headers['cache-control']).to.equal('no-cache');
-                //                expect(res.headers['cache-control']).to.not.exist;
                 done();
             });
         });
@@ -1275,12 +1388,20 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
+        upstream.route({
+            method: 'GET',
+            path: '/item',
+            handler: function (request, reply) {
+
+                return reply({ a: 1 });
+            }
+        });
+
         upstream.start(function () {
 
             var onResponse304 = function (err, res, request, reply, settings, ttl) {
 
-                reply(res).code(304);
+                return reply(res).code(304);
             };
 
             var server = provisionServer();
@@ -1299,13 +1420,21 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/item', handler: function (request, reply) { reply({ a: 1 }); } });
+        upstream.route({
+            method: 'GET',
+            path: '/item',
+            handler: function (request, reply) {
+
+                return reply({ a: 1 });
+            }
+        });
+
         upstream.start(function () {
 
             var server = provisionServer();
             server.ext('onPreResponse', function (request, reply) {
 
-                reply({ something: 'else' });
+                return reply({ something: 'else' });
             });
 
             server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
@@ -1418,7 +1547,17 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a');
 
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: {
+                    proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        passThrough: true
+                    }
+                }
+            });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1445,7 +1584,18 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: true });
 
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, localStatePassThrough: true } } });
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: {
+                    proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        passThrough: true,
+                        localStatePassThrough: true
+                    }
+                }
+            });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1472,7 +1622,17 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: true });
 
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: {
+                    proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        passThrough: true
+                    }
+                }
+            });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1489,7 +1649,17 @@ describe('H2o2', function () {
         var server = provisionServer({ routes: { state: { failAction: 'ignore' } } });
         server.state('a', { passThrough: true });
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: 8080, passThrough: true } } });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: {
+                proxy: {
+                    host: 'localhost',
+                    port: 8080,
+                    passThrough: true
+                }
+            }
+        });
 
         server.inject({ url: '/', headers: { cookie: 'a' } }, function (res) {
 
@@ -1513,7 +1683,17 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a');
 
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: {
+                    proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        passThrough: true
+                    }
+                }
+            });
 
             server.inject({ url: '/', headers: { cookie: 'a=1' } }, function (res) {
 
@@ -1540,7 +1720,17 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.state('a', { passThrough: false });
 
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: {
+                    proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        passThrough: true
+                    }
+                }
+            });
 
             server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, function (res) {
 
@@ -1556,11 +1746,25 @@ describe('H2o2', function () {
 
         var upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: function (request, reply) { reply('ok'); } });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, reply) {
+
+                return reply('ok');
+            }
+        });
         upstream.start(function () {
 
             var server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: function (request, reply) { return reply.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true }); } });
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: function (request, reply) {
+
+                    return reply.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+                }
+            });
 
             server.inject('/', function (res) {
 

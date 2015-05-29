@@ -1,9 +1,9 @@
 {
   "name": "h2o2",
   "description": "Proxy handler plugin for hapi.js",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "repository": "git://github.com/hapijs/h2o2",
-  "main": "index",
+  "main": "lib/index.js",
   "keywords": [
     "HTTP",
     "proxy",
@@ -26,12 +26,8 @@
     "lab": "5.x.x"
   },
   "scripts": {
-    "test": "make test-cov"
+    "test": "lab -a code -t 100 -L",
+    "test-cov-html": "lab -a code -r html -o coverage.html"
   },
-  "licenses": [
-    {
-      "type": "BSD",
-      "url": "http://github.com/hapijs/h2o2/raw/master/LICENSE"
-    }
-  ]
+  "license": "BSD-3-Clause"
 }
