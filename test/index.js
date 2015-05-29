@@ -134,7 +134,7 @@ describe('H2o2', function () {
                     }
                 }
             });
-        }).to.throw(/value must contain at least one of host, mapUri, uri/);
+        }).to.throw(/\"value\" must contain at least one of \[host, mapUri, uri\]/);
         done();
     });
 
