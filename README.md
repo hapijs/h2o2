@@ -70,7 +70,7 @@ server.route({
 
 ### URI
 
-Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Can not b used with `host`, `port`, `protocol`, `mapUri`.
+Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Can not be used with `host`, `port`, `protocol`, `mapUri`.
 
 ```javascript
 server.route({
