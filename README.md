@@ -50,6 +50,10 @@ The proxy handler object has the following properties:
 
 As one of the built-in handlers of hapi, it is used through the route configuration object.
 
+### Host, Port, Protocol
+
+Setting this options will send the request to certain route to an specific upstream service with the same path as the original request. Can not be used with `uri`, `mapUri`.
+
 ```javascript
 server.route({
     method: 'GET'
@@ -57,9 +61,78 @@ server.route({
     handler: {
         proxy: {
             host: '10.33.33.1',
-            port: '80'
+            port: '443'
             protocol: 'https'
         }
     }
+});
+```
+
+### URI
+
+Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Can not b used with `host`, `port`, `protocol`, `mapUri`.
+
+```javascript
+server.route({
+    method: 'GET'
+    path: '/',
+    handler: {
+        proxy: {
+            uri: 'https://some.upstream.service.com/that/has?what=you&want=todo'
+        }
+    }
+});
+```
+
+### mapUri, onResponse
+
+Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client.Cannot be used together with `host`, `port`, `protocol`, or `uri`.
+
+```javascript
+server.route({
+    method: 'GET'
+    path: '/',
+    handler: {
+        proxy: {
+            mapUri: function (request, callback) {
+
+                console.log('doing some aditional stuff before redirecting');
+                callback(null, 'https://some.upstream.service.com/');
+            }
+            onResponse: function (err, res, request, reply, settings, ttl) {
+
+                console.log('receiving the response from the upstream.');
+                wreck.read(res, { json: true }, function (err, payload) {
+
+                    console.log('some payload manipulation if you want to.')
+                    reply(payload);
+                });
+            }
+        }
+    }
+});
+
+```
+
+## Manual loading
+
+There's also the possibility of starting the server with the `minimal` property, which does not load the `h2o2` automatically. If you go with the minimal setup and want to add the `h2o2` module yourself, you could try this:
+
+```javascript
+var Hapi = require('hapi');
+var server = new Hapi.Server({ minimal: true });
+
+server.register({
+    register: require('h2o2')
+}, function (err) {
+
+    if(err){
+        console.log('Failed to load h2o2');
+    }
+
+    server.start(function (err) {
+
+        console.log('Server started at: ' + server.info.uri);
+    });
 });
 ```
