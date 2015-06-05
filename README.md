@@ -52,7 +52,7 @@ As one of the built-in handlers of hapi, it is used through the route configurat
 
 ### Host, Port, Protocol
 
-Setting this options will send the request to certain route to an specific upstream service with the same path as the original request. Can not be used with `uri`, `mapUri`.
+Setting this options will send the request to certain route to an specific upstream service with the same path as the original request. Cannot be used with `uri`, `mapUri`.
 
 ```javascript
 server.route({
@@ -70,7 +70,7 @@ server.route({
 
 ### URI
 
-Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Can not b used with `host`, `port`, `protocol`, `mapUri`.
+Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Cannot be used with `host`, `port`, `protocol`, `mapUri`.
 
 ```javascript
 server.route({
@@ -86,7 +86,7 @@ server.route({
 
 ### mapUri, onResponse
 
-Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client.Cannot be used together with `host`, `port`, `protocol`, or `uri`.
+Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client. Cannot be used together with `host`, `port`, `protocol`, or `uri`.
 
 ```javascript
 server.route({
