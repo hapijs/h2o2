@@ -310,7 +310,7 @@ describe('H2o2', function () {
                 server.inject({ url: '/gzip', headers: { 'accept-encoding': 'gzip' } }, function (res) {
 
                     expect(res.statusCode).to.equal(200);
-                    expect(new Buffer(res.payload, 'binary')).to.deep.equal(zipped);
+                    expect(res.rawPayload).to.deep.equal(zipped);
                     done();
                 });
             });
@@ -338,7 +338,7 @@ describe('H2o2', function () {
 
                 Fs.readFile(__dirname + '/../package.json', { encoding: 'utf8' }, function (err, file) {
 
-                    Zlib.unzip(new Buffer(res.payload, 'binary'), function (err, unzipped) {
+                    Zlib.unzip(res.rawPayload, function (err, unzipped) {
 
                         expect(err).to.not.exist();
                         expect(unzipped.toString('utf8')).to.deep.equal(file);
