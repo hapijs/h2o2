@@ -16,7 +16,7 @@ Lead Maintainer - [Eran Hammer](https://github.com/hueniverse)
 
 The proxy handler object has the following properties:
 
-* `host` - upstream service host to proxy requests to. It will have the same path as the cliet request.
+* `host` - upstream service host to proxy requests to. It will have the same path as the client request.
 * `port` - upstream service port.
 * `protocol` - protocol to use when making the request to the proxied host:
     * 'http'
@@ -52,11 +52,11 @@ As one of the built-in handlers of hapi, it is used through the route configurat
 
 ### Host, Port, Protocol
 
-Setting this options will send the request to certain route to an specific upstream service with the same path as the original request. Cannot be used with `uri`, `mapUri`.
+Setting these options will send the request to certain route to a specific upstream service with the same path as the original request. Cannot be used with `uri`, `mapUri`.
 
 ```javascript
 server.route({
-    method: 'GET'
+    method: 'GET',
     path: '/',
     handler: {
         proxy: {
@@ -74,7 +74,7 @@ Setting this option will send the request to an absolute URI instead of the inco
 
 ```javascript
 server.route({
-    method: 'GET'
+    method: 'GET',
     path: '/',
     handler: {
         proxy: {
@@ -90,7 +90,7 @@ Setting both options with custom functions will allow you to map the original re
 
 ```javascript
 server.route({
-    method: 'GET'
+    method: 'GET',
     path: '/',
     handler: {
         proxy: {
@@ -126,7 +126,7 @@ server.register({
     register: require('h2o2')
 }, function (err) {
 
-    if(err){
+    if (err) {
         console.log('Failed to load h2o2');
     }
 
