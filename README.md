@@ -61,7 +61,7 @@ server.route({
     handler: {
         proxy: {
             host: '10.33.33.1',
-            port: '443'
+            port: '443',
             protocol: 'https'
         }
     }
