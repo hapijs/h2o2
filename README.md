@@ -44,13 +44,13 @@ The proxy handler object has the following properties:
     * `ttl` - the upstream TTL in milliseconds if `proxy.ttl` it set to `'upstream'` and the upstream response included a valid 'Cache-Control' header with 'max-age'.
 * `ttl` - if set to `'upstream'`, applies the upstream response caching policy to the response using the `response.ttl()` method (or passed as an argument to the `onResponse` method if provided).
 * `agent` - a node [http(s) agent](http://nodejs.org/api/http.html#http_class_http_agent) to be used for connections to upstream server.
-* `maxSockets` - sets the maximum number of sockets available per outgoing proxy host connection. `false` means use the **wreck** module default value (Infinity). Does not affect non-proxy outgoing client connections. Defaults to Infinity.
+* `maxSockets` - sets the maximum number of sockets available per outgoing proxy host connection. `false` means use the **wreck** module default value (`Infinity`). Does not affect non-proxy outgoing client connections. Defaults to `Infinity`.
 
 ## Usage
 
 As one of the built-in handlers of hapi, it is used through the route configuration object.
 
-### Host, Port, Protocol
+### Using the `Host`, `Port`, `Protocol` options
 
 Setting these options will send the request to certain route to a specific upstream service with the same path as the original request. Cannot be used with `uri`, `mapUri`.
 
@@ -68,7 +68,7 @@ server.route({
 });
 ```
 
-### URI
+### Using the `URI` option
 
 Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Cannot be used with `host`, `port`, `protocol`, `mapUri`.
 
@@ -84,7 +84,7 @@ server.route({
 });
 ```
 
-### mapUri, onResponse
+### Using the `mapUri` and `onResponse` options
 
 Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client. Cannot be used together with `host`, `port`, `protocol`, or `uri`.
 
@@ -98,7 +98,7 @@ server.route({
 
                 console.log('doing some aditional stuff before redirecting');
                 callback(null, 'https://some.upstream.service.com/');
-            }
+            },
             onResponse: function (err, res, request, reply, settings, ttl) {
 
                 console.log('receiving the response from the upstream.');
