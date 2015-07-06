@@ -10,7 +10,30 @@ Lead Maintainer - [Eran Hammer](https://github.com/hueniverse)
 
 ## Introduction
 
-**h2o2** is the proxy handler created for internal use of hapi.
+**h2o2** is a hapi plugin that adds proxying functionality.
+
+## Manual loading
+
+There's the possibility of starting the server with the `minimal` property, which does not load the `h2o2` automatically. If you go with the minimal setup and want to add the `h2o2` module yourself, you could try this:
+
+```javascript
+var Hapi = require('hapi');
+var server = new Hapi.Server({ minimal: true });
+
+server.register({
+    register: require('h2o2')
+}, function (err) {
+
+    if (err) {
+        console.log('Failed to load h2o2');
+    }
+
+    server.start(function (err) {
+
+        console.log('Server started at: ' + server.info.uri);
+    });
+});
+```
 
 ## Options
 
@@ -48,9 +71,9 @@ The proxy handler object has the following properties:
 
 ## Usage
 
-As one of the built-in handlers of hapi, it is used through the route configuration object.
+As one of the handlers for hapi, it is used through the route configuration object.
 
-### Using the `Host`, `Port`, `Protocol` options
+### Using the `host`, `port`, `protocol` options
 
 Setting these options will send the request to certain route to a specific upstream service with the same path as the original request. Cannot be used with `uri`, `mapUri`.
 
@@ -68,7 +91,7 @@ server.route({
 });
 ```
 
-### Using the `URI` option
+### Using the `uri` option
 
 Setting this option will send the request to an absolute URI instead of the incoming host, port, protocol, path and query. Cannot be used with `host`, `port`, `protocol`, `mapUri`.
 
@@ -112,27 +135,4 @@ server.route({
     }
 });
 
-```
-
-## Manual loading
-
-There's also the possibility of starting the server with the `minimal` property, which does not load the `h2o2` automatically. If you go with the minimal setup and want to add the `h2o2` module yourself, you could try this:
-
-```javascript
-var Hapi = require('hapi');
-var server = new Hapi.Server({ minimal: true });
-
-server.register({
-    register: require('h2o2')
-}, function (err) {
-
-    if (err) {
-        console.log('Failed to load h2o2');
-    }
-
-    server.start(function (err) {
-
-        console.log('Server started at: ' + server.info.uri);
-    });
-});
 ```
