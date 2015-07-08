@@ -6,7 +6,7 @@ Proxy handler plugin for hapi.js.
 
 [![Build Status](https://secure.travis-ci.org/hapijs/h2o2.png)](http://travis-ci.org/hapijs/h2o2)
 
-Lead Maintainer - [Eran Hammer](https://github.com/hueniverse)
+Lead Maintainer - [Oscar A. Funes Martinez](https://github.com/osukaa)
 
 ## Introduction
 
