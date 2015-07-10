@@ -34,6 +34,9 @@ server.register({
     });
 });
 ```
+NOTE: h2o2 is included with and loaded by default in Hapi < 9.0.
+
+
 
 ## Options
 
