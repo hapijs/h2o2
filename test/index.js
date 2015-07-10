@@ -82,12 +82,12 @@ describe('H2o2', function () {
             server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
             server.state('auto', { autoValue: 'xyz' });
 
-            server.inject('/profile', function (res) {
+            server.inject('/profile', function (response) {
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.deep.equal(['test=123', 'auto=xyz']);
-                expect(res.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
+                expect(response.statusCode).to.equal(200);
+                expect(response.payload).to.contain('John Doe');
+                expect(response.headers['set-cookie']).to.deep.equal(['test=123', 'auto=xyz']);
+                expect(response.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
 
                 server.inject('/profile', function (res) {
 
@@ -398,11 +398,11 @@ describe('H2o2', function () {
             var server = provisionServer();
             server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
 
-            server.inject('/item', function (res) {
+            server.inject('/item', function (response) {
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('Active Items');
-                var counter = res.result.count;
+                expect(response.statusCode).to.equal(200);
+                expect(response.payload).to.contain('Active Items');
+                var counter = response.result.count;
 
                 server.inject('/item', function (res) {
 
@@ -559,8 +559,6 @@ describe('H2o2', function () {
         upstream.connection();
         upstream.start(function () {
 
-            var server = provisionServer();
-
             var plugin = function (server, options, next) {
 
                 var onResponseWithError = function (err, res, request, reply, settings, ttl) {
@@ -584,6 +582,8 @@ describe('H2o2', function () {
                 name: 'test'
             };
 
+            var server = provisionServer();
+
             server.register(plugin, function (err) {
 
                 expect(err).to.not.exist();
@@ -602,8 +602,6 @@ describe('H2o2', function () {
         var upstream = new Hapi.Server();
         upstream.connection();
         upstream.start(function () {
-
-            var server = provisionServer();
 
             var plugin = function (server, options, next) {
 
@@ -629,6 +627,8 @@ describe('H2o2', function () {
                 name: 'test'
             };
 
+            var server = provisionServer();
+
             server.register(plugin, function (err) {
 
                 expect(err).to.not.exist();
@@ -647,8 +647,6 @@ describe('H2o2', function () {
         var upstream = new Hapi.Server();
         upstream.connection();
         upstream.start(function () {
-
-            var server = provisionServer();
 
             var plugin = function (server, options, next) {
 
@@ -673,6 +671,8 @@ describe('H2o2', function () {
             plugin.attributes = {
                 name: 'test'
             };
+
+            var server = provisionServer();
 
             server.register(plugin, function (err) {
 
