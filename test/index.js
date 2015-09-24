@@ -9,6 +9,7 @@ var Code = require('code');
 var H2o2 = require('..');
 var Hapi = require('hapi');
 var Hoek = require('hoek');
+var Inert = require('inert');
 var Lab = require('lab');
 var Wreck = require('wreck');
 
@@ -30,7 +31,7 @@ describe('H2o2', function () {
 
     var provisionServer = function (options) {
 
-        var server = new Hapi.Server({ minimal: true });
+        var server = new Hapi.Server();
         server.connection(options);
         server.register(H2o2, Hoek.ignore);
         return server;
@@ -325,6 +326,7 @@ describe('H2o2', function () {
         };
 
         var upstream = new Hapi.Server();
+        upstream.register(Inert, Hoek.ignore);
         upstream.connection();
         upstream.route({ method: 'GET', path: '/gzipstream', handler: gzipStreamHandler });
         upstream.start(function () {
@@ -694,20 +696,21 @@ describe('H2o2', function () {
         dummy.start(function () {
 
             var dummyPort = dummy.info.port;
-            dummy.stop();
+            dummy.stop(function () {
 
-            var failureResponse = function (err, res, request, reply, settings, ttl) {
+                var failureResponse = function (err, res, request, reply, settings, ttl) {
 
-                reply(err);
-            };
+                    reply(err);
+                };
 
-            var server = provisionServer();
-            server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+                var server = provisionServer();
+                server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
-            server.inject('/failureResponse', function (res) {
+                server.inject('/failureResponse', function (res) {
 
-                expect(res.statusCode).to.equal(502);
-                done();
+                    expect(res.statusCode).to.equal(502);
+                    done();
+                });
             });
         });
     });
@@ -748,9 +751,13 @@ describe('H2o2', function () {
                     expect(result['x-forwarded-port']).to.match(/\d+/);
                     expect(result['x-forwarded-proto']).to.equal('http');
 
-                    server.stop();
-                    upstream.stop();
-                    done();
+                    server.stop(function () {
+
+                        upstream.stop(function () {
+
+                            done();
+                        });
+                    });
                 });
             });
         });
@@ -798,9 +805,13 @@ describe('H2o2', function () {
                     expect(result['x-forwarded-port']).to.match(/1337\,\d+/);
                     expect(result['x-forwarded-proto']).to.equal('https,http');
 
-                    server.stop();
-                    upstream.stop();
-                    done();
+                    server.stop(function () {
+
+                        upstream.stop(function () {
+
+                            done();
+                        });
+                    });
                 });
             });
         });
