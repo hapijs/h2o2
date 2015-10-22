@@ -4,4 +4,4 @@ node_js:
   - 4.0
   - 4
 
-  sudo: false
+sudo: false
