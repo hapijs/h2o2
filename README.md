@@ -14,11 +14,11 @@ Lead Maintainer - [Oscar A. Funes Martinez](https://github.com/osukaa)
 
 ## Manual loading
 
-There's the possibility of starting the server with the `minimal` property, which does not load the `h2o2` automatically. If you go with the minimal setup and want to add the `h2o2` module yourself, you could try this:
+Starting on version 9, `hapi` does not load the `h2o2` automatically. To add `h2o2` to your server, you should register it normally.
 
 ```javascript
-var Hapi = require('hapi');
-var server = new Hapi.Server({ minimal: true });
+const Hapi = require('hapi');
+const server = new Hapi.Server();
 
 server.register({
     register: require('h2o2')
@@ -34,9 +34,7 @@ server.register({
     });
 });
 ```
-NOTE: h2o2 is included with and loaded by default in Hapi < 9.0.
-
-
+_**NOTE**: h2o2 is included with and loaded by default in Hapi < 9.0._
 
 ## Options
 
@@ -75,6 +73,23 @@ The proxy handler object has the following properties:
 ## Usage
 
 As one of the handlers for hapi, it is used through the route configuration object.
+
+### `reply.proxy(options)`
+
+Proxies the request to an upstream endpoint where:
+- `options` - an object including the same keys and restrictions defined by the
+ [route `proxy` handler options](#route.config.proxy).
+
+No return value.
+
+The [response flow control rules](#flow-control) **do not** apply.
+
+```js
+const handler = function (request, reply) {
+
+    return reply.proxy({ host: 'example.com', port: 80, protocol: 'http' });
+};
+```
 
 ### Using the `host`, `port`, `protocol` options
 
