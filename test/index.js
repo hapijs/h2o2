@@ -53,7 +53,7 @@ describe('H2o2', () => {
         };
 
         const server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: 213 } } });
+        server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', maxSockets: 213 } } });
         server.inject('/', (res) => { });
     });
 
@@ -68,7 +68,7 @@ describe('H2o2', () => {
         };
 
         const server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: false } } });
+        server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', maxSockets: false } } });
         server.inject('/', (res) => { });
     });
 
@@ -85,7 +85,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
+            server.route({ method: 'GET', path: '/profile', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/profile', (response) => {
@@ -115,7 +115,7 @@ describe('H2o2', () => {
                 path: '/',
                 config: {
                     handler: {
-                        proxy: { host: 'example.com' }
+                        kibi_proxy: { host: 'example.com' }
                     },
                     payload: {
                         output: 'file'
@@ -136,7 +136,7 @@ describe('H2o2', () => {
                 path: '/',
                 config: {
                     handler: {
-                        proxy: { some: 'key' }
+                        kibi_proxy: { some: 'key' }
                     }
                 }
             });
@@ -154,7 +154,7 @@ describe('H2o2', () => {
                 path: '/',
                 config: {
                     handler: {
-                        proxy: { host: 'example.com' }
+                        kibi_proxy: { host: 'example.com' }
                     },
                     payload: {
                         parse: true
@@ -175,7 +175,7 @@ describe('H2o2', () => {
                 path: '/',
                 config: {
                     handler: {
-                        proxy: { host: 'example.com' }
+                        kibi_proxy: { host: 'example.com' }
                     },
                     payload: {
                         output: 'data'
@@ -202,7 +202,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
 
             server.inject('/', (res) => {
 
@@ -228,7 +228,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer({ routes: { cors: true } });
-            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/headers', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject('/headers', (res) => {
 
@@ -254,7 +254,7 @@ describe('H2o2', () => {
     //     upstream.start(function () {
     //
     //         const server = provisionServer({ routes: { cors: { credentials: true } } });
-    //         server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+    //         server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
     //
     //         server.inject('/', (res) => {
     //
@@ -284,7 +284,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
+            server.route({ method: 'GET', path: '/headers', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse: onResponse } } });
 
             server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } }, (res) => {
 
@@ -308,7 +308,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/gzip', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             Zlib.gzip(new Buffer('123456789012345678901234567890123456789012345678901234567890'), (err, zipped) => {
 
@@ -338,7 +338,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/gzipstream', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+            server.route({ method: 'GET', path: '/gzipstream', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
             server.inject({ url: '/gzipstream', headers: { 'accept-encoding': 'gzip' } }, (res) => {
 
@@ -374,7 +374,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/noHeaders', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'GET', path: '/noHeaders', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/noHeaders', (res) => {
 
@@ -405,7 +405,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
+            server.route({ method: 'GET', path: '/item', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
 
             server.inject('/item', (response) => {
 
@@ -436,7 +436,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'POST', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'POST', path: '/item', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject({ url: '/item', method: 'POST' }, (res) => {
 
@@ -460,7 +460,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/unauthorized', handler: { proxy: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
+            server.route({ method: 'GET', path: '/unauthorized', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
 
             server.inject('/unauthorized', (res) => {
 
@@ -477,7 +477,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'POST', path: '/notfound', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'POST', path: '/notfound', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/notfound', (res) => {
 
@@ -500,7 +500,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/onResponseError', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
+            server.route({ method: 'GET', path: '/onResponseError', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
 
             server.inject('/onResponseError', (res) => {
 
@@ -523,7 +523,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
 
             server.inject('/', (res) => {
 
@@ -547,7 +547,7 @@ describe('H2o2', () => {
             };
 
             const handler = {
-                proxy: {
+                kibi_proxy: {
                     host: 'localhost',
                     port: upstream.info.port,
                     onResponse: onResponseWithError
@@ -580,7 +580,7 @@ describe('H2o2', () => {
                 };
 
                 const handler = {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         onResponse: onResponseWithError
@@ -625,7 +625,7 @@ describe('H2o2', () => {
                 };
 
                 const handler = {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         onResponse: onResponseWithError
@@ -671,7 +671,7 @@ describe('H2o2', () => {
                 };
 
                 const handler = {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         onResponse: onResponseWithError
@@ -717,7 +717,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+            server.route({ method: 'GET', path: '/failureResponse', handler: { kibi_proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
             server.inject('/failureResponse', (res) => {
 
@@ -752,9 +752,8 @@ describe('H2o2', () => {
                 method: 'GET',
                 path: '/',
                 handler: {
-                    proxy: {
-                        host: upstream.info.host,
-                        port: upstream.info.port,
+                    kibi_proxy: {
+                        mapUri: mapUri,
                         protocol: 'http',
                         xforward: true
                     }
@@ -818,7 +817,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer({ host: '127.0.0.1' });
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { mapUri, xforward: true } } });
 
             server.start(() => {
 
@@ -872,7 +871,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { mapUri, xforward: true } } });
 
             server.inject('/', (res) => {
 
@@ -905,7 +904,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri } } });
+            server.route({ method: 'POST', path: '/echo', handler: { kibi_proxy: { mapUri } } });
 
             server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' }, (res) => {
 
@@ -924,7 +923,7 @@ describe('H2o2', () => {
         };
 
         const server = provisionServer();
-        server.route({ method: 'GET', path: '/maperror', handler: { proxy: { mapUri: mapUriWithError } } });
+        server.route({ method: 'GET', path: '/maperror', handler: { kibi_proxy: { mapUri: mapUriWithError } } });
 
         server.inject('/maperror', (res) => {
 
@@ -946,7 +945,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
             server.inject('/redirect?x=1', (res) => {
 
@@ -969,7 +968,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
             server.inject('/redirect?x=3', (res) => {
 
@@ -982,7 +981,7 @@ describe('H2o2', () => {
     it('errors on redirection to bad host', (done) => {
 
         const server = provisionServer();
-        server.route({ method: 'GET', path: '/nowhere', handler: { proxy: { host: 'no.such.domain.x8' } } });
+        server.route({ method: 'GET', path: '/nowhere', handler: { kibi_proxy: { host: 'no.such.domain.x8' } } });
 
         server.inject('/nowhere', (res) => {
 
@@ -994,7 +993,7 @@ describe('H2o2', () => {
     it('errors on redirection to bad host (https)', (done) => {
 
         const server = provisionServer();
-        server.route({ method: 'GET', path: '/nowhere', handler: { proxy: { host: 'no.such.domain.x8', protocol: 'https' } } });
+        server.route({ method: 'GET', path: '/nowhere', handler: { kibi_proxy: { host: 'no.such.domain.x8', protocol: 'https' } } });
 
         server.inject('/nowhere', (res) => {
 
@@ -1022,7 +1021,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/redirect', (res) => {
@@ -1054,7 +1053,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+            server.route({ method: 'GET', path: '/redirect', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/redirect?x=2', (res) => {
@@ -1092,7 +1091,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'POST', path: '/post1', handler: { proxy: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
+            server.route({ method: 'POST', path: '/post1', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
 
             server.inject({ method: 'POST', url: '/post1', payload: 'test', headers: { 'content-type': 'text/plain' } }, (res) => {
 
@@ -1122,7 +1121,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
+            server.route({ method: 'GET', path: '/timeout1', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
 
             server.inject('/timeout1', (res) => {
 
@@ -1152,7 +1151,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'GET', path: '/timeout2', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/timeout2', (res) => {
 
@@ -1183,7 +1182,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/allow', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: false } } });
+            server.route({ method: 'GET', path: '/allow', handler: { kibi_proxy: { mapUri: mapSslUri, rejectUnauthorized: false } } });
             server.inject('/allow', (res) => {
 
                 expect(res.statusCode).to.equal(200);
@@ -1214,7 +1213,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/reject', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: true } } });
+            server.route({ method: 'GET', path: '/reject', handler: { kibi_proxy: { mapUri: mapSslUri, rejectUnauthorized: true } } });
             server.inject('/reject', (res) => {
 
                 expect(res.statusCode).to.equal(502);
@@ -1244,7 +1243,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/sslDefault', handler: { proxy: { mapUri: mapSslUri } } });
+            server.route({ method: 'GET', path: '/sslDefault', handler: { kibi_proxy: { mapUri: mapSslUri } } });
             server.inject('/sslDefault', (res) => {
 
                 expect(res.statusCode).to.equal(502);
@@ -1272,7 +1271,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer({ routes: { timeout: { server: 8 } } });
-            server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
+            server.route({ method: 'GET', path: '/timeout2', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
             server.inject('/timeout2', (res) => {
 
                 expect(res.statusCode).to.equal(504);
@@ -1300,7 +1299,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer({ routes: { timeout: { server: 5 } } });
-            server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
+            server.route({ method: 'GET', path: '/timeout1', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
             server.inject('/timeout1', (res) => {
 
                 expect(res.statusCode).to.equal(503);
@@ -1325,7 +1324,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
+            server.route({ method: 'GET', path: '/handlerTemplate', handler: { kibi_proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
 
             server.inject('/handlerTemplate', (res) => {
 
@@ -1387,7 +1386,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/cachedItem', handler: { proxy: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
+            server.route({ method: 'GET', path: '/cachedItem', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
             server.state('auto', { autoValue: 'xyz' });
 
             server.inject('/cachedItem', (res) => {
@@ -1409,7 +1408,7 @@ describe('H2o2', () => {
         upstream.listen(0, () => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
 
             server.inject('/', (res) => {
 
@@ -1431,7 +1430,7 @@ describe('H2o2', () => {
         upstream.listen(0, () => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
 
             server.inject('/', (res) => {
 
@@ -1464,7 +1463,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/304', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
+            server.route({ method: 'GET', path: '/304', handler: { kibi_proxy: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
 
             server.inject('/304', (res) => {
 
@@ -1496,7 +1495,7 @@ describe('H2o2', () => {
                 return reply({ something: 'else' });
             });
 
-            server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+            server.route({ method: 'GET', path: '/item', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port } } });
 
             server.inject('/item', (res) => {
 
@@ -1520,7 +1519,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
 
             server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } }, (res) => {
 
@@ -1544,7 +1543,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
+            server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
 
             server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } }, (res) => {
 
@@ -1567,7 +1566,7 @@ describe('H2o2', () => {
             expect(options.headers['Content-Type']).to.not.exist();
             cb(new Error('placeholder'));
         };
-        server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://localhost', passThrough: true } } });
+        server.route({ method: 'GET', path: '/test', handler: { kibi_proxy: { uri: 'http://localhost', passThrough: true } } });
         server.inject({ method: 'GET', url: '/test', headers: { 'Content-Type': 'application/json' } }, (res) => {
 
             done();
@@ -1587,7 +1586,7 @@ describe('H2o2', () => {
             done();
 
         };
-        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', agent } } });
+        server.route({ method: 'GET', path: '/agenttest', handler: { kibi_proxy: { uri: 'http://localhost', agent: agent } } });
         server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
     });
 
@@ -1610,7 +1609,7 @@ describe('H2o2', () => {
                 method: 'GET',
                 path: '/',
                 handler: {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         passThrough: true
@@ -1647,7 +1646,7 @@ describe('H2o2', () => {
                 method: 'GET',
                 path: '/',
                 handler: {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         passThrough: true,
@@ -1685,7 +1684,7 @@ describe('H2o2', () => {
                 method: 'GET',
                 path: '/',
                 handler: {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         passThrough: true
@@ -1712,7 +1711,7 @@ describe('H2o2', () => {
             method: 'GET',
             path: '/',
             handler: {
-                proxy: {
+                kibi_proxy: {
                     host: 'localhost',
                     port: 8080,
                     passThrough: true
@@ -1746,7 +1745,7 @@ describe('H2o2', () => {
                 method: 'GET',
                 path: '/',
                 handler: {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         passThrough: true
@@ -1783,7 +1782,7 @@ describe('H2o2', () => {
                 method: 'GET',
                 path: '/',
                 handler: {
-                    proxy: {
+                    kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
                         passThrough: true
@@ -1821,7 +1820,7 @@ describe('H2o2', () => {
                 path: '/',
                 handler: function (request, reply) {
 
-                    return reply.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+                    return reply.kibi_proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
                 }
             });
 
