@@ -24,7 +24,8 @@
     "code": "3.x.x",
     "hapi": "14.x.x",
     "inert": "4.x.x",
-    "lab": "11.x.x"
+    "lab": "11.x.x",
+    "bluebird": "3.4.7"
   },
   "scripts": {
     "test": "lab -a code -t 100 -L",
