@@ -38,6 +38,21 @@ describe('H2o2', () => {
         return server;
     };
 
+    it('overrides maxSockets', { parallel: false }, (done) => {
+
+        const orig = Wreck.request;
+        Wreck.request = function (method, uri, options, callback) {
+
+            Wreck.request = orig;
+            expect(options.agent.maxSockets).to.equal(213);
+            done();
+        };
+
+        const server = provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', maxSockets: 213 } } });
+        server.inject('/', (res) => { });
+    });
+
     it('pre/post-process the request', { parallel: false }, (done) => {
 
         const dataHandler = function (request, reply) {
@@ -50,7 +65,7 @@ describe('H2o2', () => {
         upstream.route({ method: 'POST', path: '/data', handler: dataHandler });
         upstream.start(() => {
 
-            const server = provisionServer({ routes: { cors: true } });
+            const server = provisionServer();
             server.route({
                 method: 'POST',
                 path: '/data',
@@ -58,7 +73,6 @@ describe('H2o2', () => {
                     kibi_proxy: {
                         host: 'localhost',
                         port: upstream.info.port,
-                        passThrough: true,
                         modifyPayload: (request) => {
 
                             const req = request.raw.req;
@@ -107,30 +121,14 @@ describe('H2o2', () => {
             server.inject({
                 method: 'POST',
                 url: '/data',
-                payload: '{"msg":"hello"}',
-                headers: { 'content-type': 'application/json' }
+                payload: JSON.stringify({ msg: 'hello' })
             },
             (res) => {
 
-                expect(res.payload).to.equal('{\"msg\":\"hello\",\"copy\":\"HELLO\"}');
+                expect(res.payload).to.equal(JSON.stringify({ msg: 'hello', copy: 'HELLO' }));
                 done();
             });
         });
-    });
-
-    it('overrides maxSockets', { parallel: false }, (done) => {
-
-        const orig = Wreck.request;
-        Wreck.request = function (method, uri, options, callback) {
-
-            Wreck.request = orig;
-            expect(options.agent.maxSockets).to.equal(213);
-            done();
-        };
-
-        const server = provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', maxSockets: 213 } } });
-        server.inject('/', (res) => { });
     });
 
     it('uses node default with maxSockets set to false', { parallel: false }, (done) => {
