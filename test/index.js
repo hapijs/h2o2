@@ -94,7 +94,7 @@ describe('H2o2', () => {
                                     const body = JSON.parse(Buffer.concat(chunks));
                                     body.copy = body.msg;
                                     const buffer = new Buffer(JSON.stringify(body));
-                                    fulfill({ payload: buffer });
+                                    fulfill({ data: 'connor', payload: buffer });
                                 });
                             });
                         },
@@ -112,6 +112,7 @@ describe('H2o2', () => {
 
                                     const body = JSON.parse(Buffer.concat(chunks).toString());
                                     body.copy = body.copy.toUpperCase();
+                                    body.john = data;
                                     fulfill({
                                         response: response,
                                         data: { body: new Buffer(JSON.stringify(body)) }
@@ -130,7 +131,7 @@ describe('H2o2', () => {
             },
             (res) => {
 
-                expect(res.payload).to.equal(JSON.stringify({ msg: 'hello', copy: 'HELLO' }));
+                expect(res.payload).to.equal(JSON.stringify({ msg: 'hello', copy: 'HELLO', john: 'connor' }));
                 done();
             });
         });
