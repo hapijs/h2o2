@@ -12,6 +12,7 @@ const Hapi = require('hapi');
 const Hoek = require('hoek');
 const Lab = require('lab');
 const Wreck = require('wreck');
+const Promise = require('bluebird');
 
 
 // Declare internals
@@ -50,6 +51,85 @@ describe('H2o2', () => {
         const server = provisionServer();
         server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { host: 'localhost', maxSockets: 213 } } });
         server.inject('/', (res) => { });
+    });
+
+    it('pre/post-process the request', { parallel: false }, (done) => {
+
+        const dataHandler = function (request, reply) {
+
+            return reply(request.payload);
+        };
+
+        const upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.route({ method: 'POST', path: '/data', handler: dataHandler });
+        upstream.start(() => {
+
+            const server = provisionServer();
+            server.route({
+                method: 'POST',
+                path: '/data',
+                handler: {
+                    kibi_proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        modifyPayload: (request) => {
+
+                            const req = request.raw.req;
+                            return new Promise((fulfill, reject) => {
+
+                                const chunks = [];
+                                req.on('error', reject);
+                                req.on('data', (chunk) => {
+
+                                    chunks.push(chunk);
+                                });
+                                req.on('end', () => {
+
+                                    const body = JSON.parse(Buffer.concat(chunks));
+                                    body.copy = body.msg;
+                                    const buffer = new Buffer(JSON.stringify(body));
+                                    fulfill({ data: 'connor', payload: buffer });
+                                });
+                            });
+                        },
+                        modifyResponse: (response, data) => {
+
+                            return new Promise((fulfill, reject) => {
+
+                                const chunks = [];
+                                response.on('error', reject);
+                                response.on('data', (d) => {
+
+                                    chunks.push(d);
+                                });
+                                response.on('end', () => {
+
+                                    const body = JSON.parse(Buffer.concat(chunks).toString());
+                                    body.copy = body.copy.toUpperCase();
+                                    body.john = data;
+                                    fulfill({
+                                        response: response,
+                                        data: { body: new Buffer(JSON.stringify(body)) }
+                                    });
+                                });
+                            });
+                        }
+                    }
+                }
+            });
+
+            server.inject({
+                method: 'POST',
+                url: '/data',
+                payload: JSON.stringify({ msg: 'hello' })
+            },
+            (res) => {
+
+                expect(res.payload).to.equal(JSON.stringify({ msg: 'hello', copy: 'HELLO', john: 'connor' }));
+                done();
+            });
+        });
     });
 
     it('uses node default with maxSockets set to false', { parallel: false }, (done) => {
