@@ -1,5 +1,5 @@
 {
-  "name": "h2o2",
+  "name": "kibi-h2o2",
   "description": "Kibi fork of proxy handler plugin for hapi.js",
   "version": "5.4.0-kibi",
   "repository": "git://github.com/sirensolutions/h2o2",
