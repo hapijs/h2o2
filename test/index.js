@@ -269,6 +269,7 @@ describe('H2o2', () => {
 
         const onResponse = function (err, res, request, reply, settings, ttl) {
 
+            expect(err).to.be.null();
             reply(res).vary('Something');
         };
 
@@ -340,6 +341,7 @@ describe('H2o2', () => {
 
                 Fs.readFile(__dirname + '/../package.json', { encoding: 'utf8' }, (err, file) => {
 
+                    expect(err).to.be.null();
                     Zlib.unzip(res.rawPayload, (err, unzipped) => {
 
                         expect(err).to.not.exist();
@@ -488,6 +490,7 @@ describe('H2o2', () => {
 
             const onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
+                expect(err).to.be.null();
                 reply(Boom.forbidden('Forbidden'));
             };
 
@@ -510,6 +513,7 @@ describe('H2o2', () => {
 
             const on = function (err, res, request, reply, settings, ttl) {
 
+                expect(err).to.be.null();
                 reply(res).state('a', 'b');
             };
 
@@ -533,6 +537,7 @@ describe('H2o2', () => {
 
             const onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
+                expect(err).to.be.null();
                 reply(this.c);
             };
 
@@ -565,6 +570,7 @@ describe('H2o2', () => {
 
                 const onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
+                    expect(err).to.be.null();
                     reply(this.c);
                 };
 
@@ -609,6 +615,7 @@ describe('H2o2', () => {
 
                 const onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
+                    expect(err).to.be.null();
                     reply(this.c);
                 };
 
@@ -654,6 +661,7 @@ describe('H2o2', () => {
 
                 const onResponseWithError = function (err, res, request, reply, settings, ttl) {
 
+                    expect(err).to.be.null();
                     reply(this.c);
                 };
 
@@ -738,6 +746,7 @@ describe('H2o2', () => {
 
                 Wreck.get('http://127.0.0.1:' + server.info.port + '/', (err, res, body) => {
 
+                    expect(err).to.be.null();
                     expect(res.statusCode).to.equal(200);
                     const result = JSON.parse(body);
 
@@ -788,6 +797,7 @@ describe('H2o2', () => {
 
                 Wreck.get('http://127.0.0.1:' + server.info.port + '/', (err, res, body) => {
 
+                    expect(err).to.be.null();
                     expect(res.statusCode).to.equal(200);
                     const result = JSON.parse(body);
 
@@ -1403,6 +1413,7 @@ describe('H2o2', () => {
 
             const onResponse304 = function (err, res, request, reply, settings, ttl) {
 
+                expect(err).to.be.null();
                 return reply(res).code(304);
             };
 
