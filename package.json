@@ -15,16 +15,16 @@
     "node": ">=4.0.0"
   },
   "dependencies": {
-    "boom": "2.X.X",
-    "hoek": "2.X.X",
-    "joi": "6.X.X",
-    "wreck": "6.X.X"
+    "boom": "^3.1.2",
+    "hoek": "^3.0.4",
+    "joi": "^8.0.2",
+    "wreck": "^7.0.0"
   },
   "devDependencies": {
     "code": "2.X.X",
-    "hapi": "11.X.X",
+    "hapi": "^13.0.0",
     "inert": "3.X.X",
-    "lab": "7.X.X"
+    "lab": "^9.1.0"
   },
   "scripts": {
     "test": "lab -a code -t 100 -L",
