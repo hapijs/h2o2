@@ -53,13 +53,13 @@ The proxy handler object has the following properties:
 * `xforward` - if set to `true`, sets the 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto' headers when making a request to the proxied upstream endpoint. Defaults to `false`.
 * `redirects` - the maximum number of HTTP redirections allowed to be followed automatically by the handler. Set to `false` or `0` to disable all redirections (the response will contain the redirection received from the upstream service). If redirections are enabled, no redirections (301, 302, 307, 308) will be passed along to the client, and reaching the maximum allowed redirections will return an error response. Defaults to `false`.
 * `timeout` - number of milliseconds before aborting the upstream request. Defaults to `180000` (3 minutes).
-* `mapUri` - a function used to map the request URI to the proxied URI. Cannot be used together with `host`, `port`, `protocol`, or `uri`. The function signature is `function(request, callback)` where:
+* `mapUri` - a function used to map the request URI to the proxied URI. Cannot be used together with `host`, `port`, `protocol`, or `uri`. The function signature is `function (request, callback)` where:
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
-    * `callback` - is `function(err, uri, headers)` where:
+    * `callback` - is `function (err, uri, headers)` where:
         * `err` - internal error condition.
         * `uri` - the absolute proxy URI.
         * `headers` - optional object where each key is an HTTP request header and the value is the header content.
-* `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function(err, res, request, reply, settings, ttl)` where:
+* `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, reply, settings, ttl)` where:
     * `err` - internal or upstream error returned from attempting to contact the upstream proxy.
     * `res` - the node response object received from the upstream service. `res` is a readable stream (use the [wreck](https://github.com/hapijs/wreck) module `read` method to easily convert it to a Buffer or string).
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
@@ -143,7 +143,7 @@ server.route({
             onResponse: function (err, res, request, reply, settings, ttl) {
 
                 console.log('receiving the response from the upstream.');
-                wreck.read(res, { json: true }, function (err, payload) {
+                Wreck.read(res, { json: true }, function (err, payload) {
 
                     console.log('some payload manipulation if you want to.')
                     reply(payload);
