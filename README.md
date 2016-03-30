@@ -82,7 +82,7 @@ Proxies the request to an upstream endpoint where:
 
 No return value.
 
-The [response flow control rules](#flow-control) **do not** apply.
+The [response flow control rules](http://hapijs.com/api#flow-control) **do not** apply.
 
 ```js
 const handler = function (request, reply) {
