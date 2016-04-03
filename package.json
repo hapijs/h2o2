@@ -24,7 +24,7 @@
     "code": "2.X.X",
     "hapi": "13.X.X",
     "inert": "3.X.X",
-    "lab": "9.X.X"
+    "lab": "10.X.X"
   },
   "scripts": {
     "test": "lab -a code -t 100 -L",
