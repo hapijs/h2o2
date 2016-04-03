@@ -78,7 +78,7 @@ As one of the handlers for hapi, it is used through the route configuration obje
 
 Proxies the request to an upstream endpoint where:
 - `options` - an object including the same keys and restrictions defined by the
- [route `proxy` handler options](#route.config.proxy).
+ [route `proxy` handler options](#options).
 
 No return value.
 
