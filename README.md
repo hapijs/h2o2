@@ -146,7 +146,7 @@ server.route({
                 Wreck.read(res, { json: true }, function (err, payload) {
 
                     console.log('some payload manipulation if you want to.')
-                    reply(payload);
+                    reply(payload).headers = res.headers;
                 });
             }
         }
