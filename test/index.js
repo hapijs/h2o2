@@ -132,6 +132,159 @@ describe('H2o2', () => {
         });
     });
 
+    it('modifyPayload the request with error', { parallel: false }, (done) => {
+
+        const dataHandler = function (request, reply) {
+
+            return reply(request.payload);
+        };
+
+        const upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.route({ method: 'POST', path: '/data', handler: dataHandler });
+        upstream.start(() => {
+
+            const server = provisionServer();
+            server.route({
+                method: 'POST',
+                path: '/data',
+                handler: {
+                    kibi_proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        modifyPayload: (request) => {
+
+                            const req = request.raw.req;
+                            return new Promise((fulfill, reject) => {
+
+                                const chunks = [];
+                                req.on('error', reject);
+                                req.on('data', (chunk) => {
+
+                                    chunks.push(chunk);
+                                });
+                                req.on('end', () => {
+
+                                    reject({ message: 'some error' });
+                                });
+                            });
+                        },
+                        modifyResponse: (response, data) => {
+
+                            return new Promise((fulfill, reject) => {
+
+                                const chunks = [];
+                                response.on('error', reject);
+                                response.on('data', (d) => {
+
+                                    chunks.push(d);
+                                });
+                                response.on('end', () => {
+
+                                    const body = JSON.parse(Buffer.concat(chunks).toString());
+                                    body.copy = body.copy.toUpperCase();
+                                    body.john = data;
+                                    fulfill({
+                                        response: response,
+                                        data: { body: new Buffer(JSON.stringify(body)) }
+                                    });
+                                });
+                            });
+                        }
+                    }
+                }
+            });
+
+            server.inject({
+                method: 'POST',
+                url: '/data',
+                payload: JSON.stringify({ msg: 'hello' })
+            },
+            (res) => {
+
+                const payload = JSON.parse(res.payload);
+                expect(payload.statusCode).to.equal(400);
+                expect(payload.message).to.equal('some error');
+                done();
+            });
+        });
+    });
+
+    it('modifyResponse the request with error', { parallel: false }, (done) => {
+
+        const dataHandler = function (request, reply) {
+
+            return reply(request.payload);
+        };
+
+        const upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.route({ method: 'POST', path: '/data', handler: dataHandler });
+        upstream.start(() => {
+
+            const server = provisionServer();
+            server.route({
+                method: 'POST',
+                path: '/data',
+                handler: {
+                    kibi_proxy: {
+                        host: 'localhost',
+                        port: upstream.info.port,
+                        modifyPayload: (request) => {
+
+                            const req = request.raw.req;
+                            return new Promise((fulfill, reject) => {
+
+                                const chunks = [];
+                                req.on('error', reject);
+                                req.on('data', (chunk) => {
+
+                                    chunks.push(chunk);
+                                });
+                                req.on('end', () => {
+
+                                    const body = JSON.parse(Buffer.concat(chunks));
+                                    body.copy = body.msg;
+                                    const buffer = new Buffer(JSON.stringify(body));
+                                    fulfill({ data: 'connor', payload: buffer });
+                                });
+                            });
+                        },
+                        modifyResponse: (response, data) => {
+
+                            return new Promise((fulfill, reject) => {
+
+                                const chunks = [];
+                                response.on('error', reject);
+                                response.on('data', (d) => {
+
+                                    chunks.push(d);
+                                });
+                                response.on('end', () => {
+
+                                    reject({ message: 'some error' });
+                                });
+                            });
+                        }
+                    }
+                }
+            });
+
+            server.inject({
+                method: 'POST',
+                url: '/data',
+                payload: JSON.stringify({ msg: 'hello' })
+            },
+            (res) => {
+
+                const payload = JSON.parse(res.payload);
+                expect(payload.statusCode).to.equal(400);
+                expect(payload.message).to.equal('some error');
+                done();
+            });
+        });
+    });
+
     it('uses node default with maxSockets set to false', { parallel: false }, (done) => {
 
         const orig = Wreck.request;
