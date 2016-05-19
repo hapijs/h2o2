@@ -45,7 +45,7 @@ The proxy handler object has the following properties:
 * `protocol` - protocol to use when making the request to the proxied host:
     * 'http'
     * 'https'
-* `uri` - absolute URI used insted of host, port, protocol, path, and query. Cannot be used with `host`, `port`, `protocol`, or `mapUri`.
+* `uri` - absolute URI used instead of host, port, protocol, path, and query. Cannot be used with `host`, `port`, `protocol`, or `mapUri`.
 * `passThrough` - if set to `true`, it forwards the headers from the client to the upstream service, headers sent from the upstream service will also be forwarded to the client. Defaults to `false`.
 * `localStatePassThrough` - if set to`false`, any locally defined state is removed from incoming requests before being sent to the upstream service. This value can be overridden on a per state basis via the `server.state()``passThrough` option. Defaults to `false`
 * `acceptEncoding` - if set to `false`, does not pass-through the 'Accept-Encoding' HTTP header which is useful for the `onResponse` post-processing to avoid receiving an encoded response. Can only be used together with `passThrough`. Defaults to `true` (passing header).
