@@ -87,7 +87,7 @@ describe('H2o2', () => {
 
                 expect(response.statusCode).to.equal(200);
                 expect(response.payload).to.contain('John Doe');
-                expect(response.headers['set-cookie']).to.deep.equal(['test=123', 'auto=xyz']);
+                expect(response.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
                 expect(response.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
 
                 server.inject('/profile', (res) => {
@@ -279,7 +279,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse: onResponse } } });
+            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
 
             server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } }, (res) => {
 
@@ -312,7 +312,7 @@ describe('H2o2', () => {
                 server.inject({ url: '/gzip', headers: { 'accept-encoding': 'gzip' } }, (res) => {
 
                     expect(res.statusCode).to.equal(200);
-                    expect(res.rawPayload).to.deep.equal(zipped);
+                    expect(res.rawPayload).to.equal(zipped);
                     done();
                 });
             });
@@ -345,7 +345,7 @@ describe('H2o2', () => {
                     Zlib.unzip(res.rawPayload, (err, unzipped) => {
 
                         expect(err).to.not.exist();
-                        expect(unzipped.toString('utf8')).to.deep.equal(file);
+                        expect(unzipped.toString('utf8')).to.equal(file);
                         done();
                     });
                 });
@@ -550,7 +550,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/onResponseError', config: { handler: handler, bind: { c: 6 } } });
+            server.route({ method: 'GET', path: '/onResponseError', config: { handler, bind: { c: 6 } } });
 
             server.inject('/onResponseError', (res) => {
 
@@ -582,7 +582,7 @@ describe('H2o2', () => {
                     }
                 };
 
-                server.route({ method: 'GET', path: '/', config: { handler: handler, bind: { c: 6 } } });
+                server.route({ method: 'GET', path: '/', config: { handler, bind: { c: 6 } } });
                 return next();
             };
 
@@ -628,7 +628,7 @@ describe('H2o2', () => {
                 };
 
                 server.bind({ c: 7 });
-                server.route({ method: 'GET', path: '/', config: { handler: handler } });
+                server.route({ method: 'GET', path: '/', config: { handler } });
                 return next();
             };
 
@@ -674,7 +674,7 @@ describe('H2o2', () => {
                 };
 
                 server.bind({ c: 7 });
-                server.route({ method: 'GET', path: '/', config: { handler: handler, bind: { c: 4 } } });
+                server.route({ method: 'GET', path: '/', config: { handler, bind: { c: 4 } } });
                 return next();
             };
 
@@ -731,7 +731,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const mapUri = function (request, callback) {
@@ -740,7 +740,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer({ host: '127.0.0.1' });
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri: mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
 
             server.start(() => {
 
@@ -776,7 +776,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const mapUri = function (request, callback) {
@@ -791,7 +791,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer({ host: '127.0.0.1' });
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri: mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
 
             server.start(() => {
 
@@ -827,7 +827,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const mapUri = function (request, callback) {
@@ -842,7 +842,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri: mapUri, xforward: true } } });
+            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
 
             server.inject('/', (res) => {
 
@@ -874,7 +874,7 @@ describe('H2o2', () => {
             };
 
             const server = provisionServer();
-            server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri: mapUri } } });
+            server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri } } });
 
             server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' }, (res) => {
 
@@ -998,7 +998,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.deep.equal(['test=123', 'auto=xyz']);
+                expect(res.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
                 done();
             });
         });
@@ -1030,7 +1030,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.deep.equal(['test=123', 'auto=xyz']);
+                expect(res.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
                 done();
             });
         });
@@ -1541,7 +1541,7 @@ describe('H2o2', () => {
             done();
 
         };
-        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', agent: agent } } });
+        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', agent } } });
         server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
     });
 
@@ -1554,7 +1554,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const server = provisionServer();
@@ -1576,7 +1576,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 const cookies = JSON.parse(res.payload);
-                expect(cookies).to.deep.equal({ b: '2' });
+                expect(cookies).to.equal({ b: '2' });
                 done();
             });
         });
@@ -1591,7 +1591,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const server = provisionServer();
@@ -1614,7 +1614,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 const cookies = JSON.parse(res.payload);
-                expect(cookies).to.deep.equal({ a: '1', b: '2' });
+                expect(cookies).to.equal({ a: '1', b: '2' });
                 done();
             });
         });
@@ -1629,7 +1629,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const server = provisionServer();
@@ -1651,7 +1651,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 const cookies = JSON.parse(res.payload);
-                expect(cookies).to.deep.equal({ a: '1', b: '2' });
+                expect(cookies).to.equal({ a: '1', b: '2' });
                 done();
             });
         });
@@ -1690,7 +1690,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const server = provisionServer();
@@ -1712,7 +1712,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 const cookies = JSON.parse(res.payload);
-                expect(cookies).to.deep.equal({});
+                expect(cookies).to.equal({});
                 done();
             });
         });
@@ -1727,7 +1727,7 @@ describe('H2o2', () => {
 
         const upstream = new Hapi.Server();
         upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler: handler });
+        upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
             const server = provisionServer();
@@ -1749,7 +1749,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 const cookies = JSON.parse(res.payload);
-                expect(cookies).to.deep.equal({ b: '2' });
+                expect(cookies).to.equal({ b: '2' });
                 done();
             });
         });
