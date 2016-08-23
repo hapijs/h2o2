@@ -16,15 +16,15 @@
   },
   "dependencies": {
     "boom": "3.X.X",
-    "hoek": "3.X.X",
-    "joi": "8.X.X",
-    "wreck": "7.X.X"
+    "hoek": "4.X.X",
+    "joi": "9.X.X",
+    "wreck": "9.X.X"
   },
   "devDependencies": {
-    "code": "2.X.X",
-    "hapi": "13.X.X",
-    "inert": "3.X.X",
-    "lab": "10.X.X"
+    "code": "3.X.X",
+    "hapi": "14.X.X",
+    "inert": "4.X.X",
+    "lab": "11.X.X"
   },
   "scripts": {
     "test": "lab -a code -t 100 -L",
