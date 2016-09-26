@@ -751,13 +751,16 @@ describe('H2o2', () => {
                     const result = JSON.parse(body);
 
                     const expectedClientAddress = '127.0.0.1';
+                    const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
                     if (Net.isIPv6(server.listener.address().address)) {
                         expectedClientAddress = '::ffff:127.0.0.1';
+                        expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
                     }
 
                     expect(result['x-forwarded-for']).to.equal(expectedClientAddress);
                     expect(result['x-forwarded-port']).to.match(/\d+/);
                     expect(result['x-forwarded-proto']).to.equal('http');
+                    expect(result['x-forwarded-host']).to.equal(expectedClientAddressAndPort);
 
                     server.stop(Hoek.ignore);
                     upstream.stop(Hoek.ignore);
@@ -784,7 +787,8 @@ describe('H2o2', () => {
                 const headers = {
                     'x-forwarded-for': 'testhost',
                     'x-forwarded-port': 1337,
-                    'x-forwarded-proto': 'https'
+                    'x-forwarded-proto': 'https',
+                    'x-forwarded-host': 'example.com'
                 };
 
                 return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/', headers);
@@ -802,14 +806,16 @@ describe('H2o2', () => {
                     const result = JSON.parse(body);
 
                     const expectedClientAddress = '127.0.0.1';
+                    const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
                     if (Net.isIPv6(server.listener.address().address)) {
                         expectedClientAddress = '::ffff:127.0.0.1';
+                        expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
                     }
 
                     expect(result['x-forwarded-for']).to.equal('testhost,' + expectedClientAddress);
                     expect(result['x-forwarded-port']).to.match(/1337\,\d+/);
                     expect(result['x-forwarded-proto']).to.equal('https,http');
-
+                    expect(result['x-forwarded-host']).to.equal('example.com,' + expectedClientAddressAndPort);
                     server.stop(Hoek.ignore);
                     upstream.stop(Hoek.ignore);
                     done();
@@ -835,7 +841,8 @@ describe('H2o2', () => {
                 const headers = {
                     'x-forwarded-for': 'testhost',
                     'x-forwarded-port': 1337,
-                    'x-forwarded-proto': 'https'
+                    'x-forwarded-proto': 'https',
+                    'x-forwarded-host': 'example.com'
                 };
 
                 return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/', headers);
@@ -851,6 +858,7 @@ describe('H2o2', () => {
                 expect(result['x-forwarded-for']).to.equal('testhost');
                 expect(result['x-forwarded-port']).to.equal('1337');
                 expect(result['x-forwarded-proto']).to.equal('https');
+                expect(result['x-forwarded-host']).to.equal('example.com');
                 done();
             });
         });
