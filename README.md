@@ -126,7 +126,7 @@ server.route({
 ```
 ### Custom `uri` template values
     
-When using the `uri` option, there are several **default** template values that can be injected from the incoming request:
+When using the `uri` option, there are optional **default** template values that can be injected from the incoming `request`:
 
 * `{protocol}`
 * `{host}`
@@ -136,14 +136,17 @@ When using the `uri` option, there are several **default** template values that 
 ```javascript
 server.route({
     method: 'GET',
-    path: '/',
+    path: '/foo',
     handler: {
         proxy: {
-            uri: '{protocol}:{port}//{host}/use/the/{path}'
+            uri: '{protocol}//{host}:{port}/go/to/{path}'
         }
     }
 });
 ```
+Requests to `http://127.0.0.1:8080/foo/` would be proxied to an upstream destination of `http://127.0.0.1:8080/go/to/foo`
+
+
 Additionally, you can capture request.params values and inject them into the upstream uri value using a similar replacment strategy:
 ```javascript
 server.route({
@@ -156,7 +159,7 @@ server.route({
     }
 });
 ```
-**Note** The default variables of `{protocol}`, `{host}`, `{port}`, `{path}` take precedence - it's best to treat those as reserved when naming your own request.params.
+**Note** The default variables of `{protocol}`, `{host}`, `{port}`, `{path}` take precedence - it's best to treat those as reserved when naming your own `request.params`.
 
     
 ### Using the `mapUri` and `onResponse` options
