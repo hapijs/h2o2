@@ -124,7 +124,44 @@ server.route({
     }
 });
 ```
+### Custom `uri` template values
+    
+When using the `uri` option, there are optional **default** template values that can be injected from the incoming `request`:
 
+* `{protocol}`
+* `{host}`
+* `{port}`
+* `{path}`
+    
+```javascript
+server.route({
+    method: 'GET',
+    path: '/foo',
+    handler: {
+        proxy: {
+            uri: '{protocol}//{host}:{port}/go/to/{path}'
+        }
+    }
+});
+```
+Requests to `http://127.0.0.1:8080/foo/` would be proxied to an upstream destination of `http://127.0.0.1:8080/go/to/foo`
+
+
+Additionally, you can capture request.params values and inject them into the upstream uri value using a similar replacment strategy:
+```javascript
+server.route({
+    method: 'GET',
+    path: '/foo/{bar}',
+    handler: {
+        proxy: {
+            uri: 'https://some.upstream.service.com/some/path/to/{bar}'
+        }
+    }
+});
+```
+**Note** The default variables of `{protocol}`, `{host}`, `{port}`, `{path}` take precedence - it's best to treat those as reserved when naming your own `request.params`.
+
+    
 ### Using the `mapUri` and `onResponse` options
 
 Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client. Cannot be used together with `host`, `port`, `protocol`, or `uri`.

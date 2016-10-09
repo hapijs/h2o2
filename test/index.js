@@ -1336,6 +1336,34 @@ describe('H2o2', () => {
         });
     });
 
+    it('proxies via uri template with request.param variables', (done) => {
+
+        const upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.route({
+            method: 'GET',
+            path: '/item/{some_param}',
+            handler: function (request, reply) {
+
+                return reply({ a: request.params.some_param });
+            }
+        });
+
+        upstream.start(() => {
+
+            const server = provisionServer();
+            server.route({ method: 'GET', path: '/handlerTemplate/{some_param}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{some_param}' } } });
+
+            const p = 'foo';
+            server.inject('/handlerTemplate/' + p, (res) => {
+
+                expect(res.statusCode).to.equal(200);
+                expect(res.payload).to.contain('"a":"' + p + '"');
+                done();
+            });
+        });
+    });
+
     it('passes upstream caching headers', (done) => {
 
         const upstream = new Hapi.Server();
