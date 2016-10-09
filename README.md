@@ -139,7 +139,7 @@ server.route({
     path: '/foo',
     handler: {
         proxy: {
-            uri: '{protocol}//{host}:{port}/go/to/{path}'
+            uri: '{protocol}://{host}:{port}/go/to/{path}'
         }
     }
 });
