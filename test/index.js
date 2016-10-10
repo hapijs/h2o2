@@ -1342,23 +1342,25 @@ describe('H2o2', () => {
         upstream.connection();
         upstream.route({
             method: 'GET',
-            path: '/item/{some_param}',
+            path: '/item/{param_a}/{param_b}',
             handler: function (request, reply) {
 
-                return reply({ a: request.params.some_param });
+                return reply({ a: request.params.param_a, b:request.params.param_b });
             }
         });
 
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate/{some_param}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{some_param}' } } });
+            server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
 
-            const p = 'foo';
-            server.inject('/handlerTemplate/' + p, (res) => {
+            const prma = 'foo';
+            const prmb = 'bar';
+            server.inject(`/handlerTemplate/${prma}/${prmb}`, (res) => {
 
                 expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('"a":"' + p + '"');
+                expect(res.payload).to.contain(`"a":"${prma}"`);
+                expect(res.payload).to.contain(`"b":"${prmb}"`);
                 done();
             });
         });
