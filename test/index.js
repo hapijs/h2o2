@@ -25,7 +25,7 @@ const lab = exports.lab = Lab.script();
 const describe = lab.describe;
 const it = lab.it;
 const expect = Code.expect;
-
+const cookieExpect = ['test=123; Secure; HttpOnly; SameSite=Strict', 'auto=xyz; Secure; HttpOnly; SameSite=Strict'];
 
 describe('H2o2', () => {
 
@@ -92,7 +92,7 @@ describe('H2o2', () => {
 
                 expect(response.statusCode).to.equal(200);
                 expect(response.payload).to.contain('John Doe');
-                expect(response.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
+                expect(response.headers['set-cookie']).to.equal(cookieExpect);
                 expect(response.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
 
                 server.inject('/profile', (res) => {
@@ -528,7 +528,47 @@ describe('H2o2', () => {
             server.inject('/', (res) => {
 
                 expect(res.statusCode).to.equal(404);
-                expect(res.headers['set-cookie'][0]).to.equal('a=b');
+                expect(res.headers['set-cookie'][0]).to.equal('a=b; Secure; HttpOnly; SameSite=Strict');
+                done();
+            });
+        });
+    });
+
+    it('calls onRequest when it\'s created', (done) => {
+
+        const upstream = new Hapi.Server();
+        upstream.connection();
+        upstream.start(() => {
+
+            let called = false;
+            const onRequestWithSocket = function (req) {
+
+                called = true;
+                expect(req).to.be.an.instanceof(Http.ClientRequest);
+            };
+
+            const on = function (err, res, request, reply, settings, ttl) {
+
+                expect(err).to.be.null();
+                reply(this.c);
+            };
+
+            const handler = {
+                proxy: {
+                    host: 'localhost',
+                    port: upstream.info.port,
+                    onRequest: onRequestWithSocket,
+                    onResponse: on
+                }
+            };
+
+            const server = provisionServer();
+            server.route({ method: 'GET', path: '/onRequestSocket', config: { handler, bind: { c: 6 } } });
+
+            server.inject('/onRequestSocket', (res) => {
+
+                expect(res.result).to.equal(6);
+                expect(called).to.equal(true);
                 done();
             });
         });
@@ -1029,7 +1069,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
+                expect(res.headers['set-cookie']).to.equal(cookieExpect);
                 done();
             });
         });
@@ -1061,7 +1101,7 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
+                expect(res.headers['set-cookie']).to.equal(cookieExpect);
                 done();
             });
         });
