@@ -114,7 +114,7 @@ describe('H2o2', () => {
                                     body.copy = body.copy.toUpperCase();
                                     body.john = data;
                                     fulfill({
-                                        response: response,
+                                        response,
                                         data: { body: new Buffer(JSON.stringify(body)) }
                                     });
                                 });
@@ -190,7 +190,7 @@ describe('H2o2', () => {
                                     body.copy = body.copy.toUpperCase();
                                     body.john = data;
                                     fulfill({
-                                        response: response,
+                                        response,
                                         data: { body: new Buffer(JSON.stringify(body)) }
                                     });
                                 });
@@ -517,7 +517,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/headers', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse: onResponse } } });
+            server.route({ method: 'GET', path: '/headers', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
 
             server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } }, (res) => {
 
@@ -976,6 +976,11 @@ describe('H2o2', () => {
         upstream.route({ method: 'GET', path: '/', handler });
         upstream.start(() => {
 
+            const mapUri = function (request, callback) {
+
+                return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/');
+            };
+
             const server = provisionServer({
                 host,
                 tls: tlsOptions
@@ -986,7 +991,7 @@ describe('H2o2', () => {
                 path: '/',
                 handler: {
                     kibi_proxy: {
-                        mapUri: mapUri,
+                        mapUri,
                         protocol: 'http',
                         xforward: true
                     }
@@ -1584,7 +1589,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
+            server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { kibi_proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
 
             const prma = 'foo';
             const prmb = 'bar';
@@ -1819,7 +1824,7 @@ describe('H2o2', () => {
             done();
 
         };
-        server.route({ method: 'GET', path: '/agenttest', handler: { kibi_proxy: { uri: 'http://localhost', agent: agent } } });
+        server.route({ method: 'GET', path: '/agenttest', handler: { kibi_proxy: { uri: 'http://localhost', agent } } });
         server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
     });
 
