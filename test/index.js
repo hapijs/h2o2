@@ -114,7 +114,7 @@ describe('H2o2', () => {
                                     body.copy = body.copy.toUpperCase();
                                     body.john = data;
                                     fulfill({
-                                        response: response,
+                                        response,
                                         data: { body: new Buffer(JSON.stringify(body)) }
                                     });
                                 });
@@ -190,7 +190,7 @@ describe('H2o2', () => {
                                     body.copy = body.copy.toUpperCase();
                                     body.john = data;
                                     fulfill({
-                                        response: response,
+                                        response,
                                         data: { body: new Buffer(JSON.stringify(body)) }
                                     });
                                 });
@@ -1585,7 +1585,7 @@ describe('H2o2', () => {
         upstream.start(() => {
 
             const server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
+            server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { kibi_proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
 
             const prma = 'foo';
             const prmb = 'bar';
