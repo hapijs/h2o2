@@ -518,7 +518,6 @@ describe('H2o2', () => {
 
             const server = provisionServer();
             server.route({ method: 'GET', path: '/headers', handler: { kibi_proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
-
             server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } }, (res) => {
 
                 expect(res.statusCode).to.equal(200);
@@ -1106,7 +1105,6 @@ describe('H2o2', () => {
 
             const server = provisionServer();
             server.route({ method: 'GET', path: '/', handler: { kibi_proxy: { mapUri, xforward: true } } });
-
             server.inject('/', (res) => {
 
                 expect(res.statusCode).to.equal(200);
@@ -1139,7 +1137,6 @@ describe('H2o2', () => {
 
             const server = provisionServer();
             server.route({ method: 'POST', path: '/echo', handler: { kibi_proxy: { mapUri } } });
-
             server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' }, (res) => {
 
                 expect(res.statusCode).to.equal(200);
