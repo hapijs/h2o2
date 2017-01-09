@@ -45,21 +45,21 @@ The proxy handler object has the following properties:
 * `protocol` - protocol to use when making the request to the proxied host:
     * 'http'
     * 'https'
-* `uri` - absolute URI used insted of host, port, protocol, path, and query. Cannot be used with `host`, `port`, `protocol`, or `mapUri`.
+* `uri` - absolute URI used instead of host, port, protocol, path, and query. Cannot be used with `host`, `port`, `protocol`, or `mapUri`.
 * `passThrough` - if set to `true`, it forwards the headers from the client to the upstream service, headers sent from the upstream service will also be forwarded to the client. Defaults to `false`.
 * `localStatePassThrough` - if set to`false`, any locally defined state is removed from incoming requests before being sent to the upstream service. This value can be overridden on a per state basis via the `server.state()``passThrough` option. Defaults to `false`
 * `acceptEncoding` - if set to `false`, does not pass-through the 'Accept-Encoding' HTTP header which is useful for the `onResponse` post-processing to avoid receiving an encoded response. Can only be used together with `passThrough`. Defaults to `true` (passing header).
 * `rejectUnauthorized` - sets the `rejectUnauthorized` property on the https [agent](http://nodejs.org/api/https.html#https_https_request_options_callback) making the request. This value is only used when the proxied server uses TLS/SSL. If set it will override the node.js `rejectUnauthorized` property. If `false` then ssl errors will be ignored. When `true` the server certificate is verified and an 500 response will be sent when verification fails. This shouldn't be used alongside the `agent` setting as the `agent` will be used instead. Defaults to the https agent default value of `true`.
-* `xforward` - if set to `true`, sets the 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto' headers when making a request to the proxied upstream endpoint. Defaults to `false`.
+* `xforward` - if set to `true`, sets the 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto', 'X-Forwarded-Host' headers when making a request to the proxied upstream endpoint. Defaults to `false`.
 * `redirects` - the maximum number of HTTP redirections allowed to be followed automatically by the handler. Set to `false` or `0` to disable all redirections (the response will contain the redirection received from the upstream service). If redirections are enabled, no redirections (301, 302, 307, 308) will be passed along to the client, and reaching the maximum allowed redirections will return an error response. Defaults to `false`.
 * `timeout` - number of milliseconds before aborting the upstream request. Defaults to `180000` (3 minutes).
-* `mapUri` - a function used to map the request URI to the proxied URI. Cannot be used together with `host`, `port`, `protocol`, or `uri`. The function signature is `function(request, callback)` where:
+* `mapUri` - a function used to map the request URI to the proxied URI. Cannot be used together with `host`, `port`, `protocol`, or `uri`. The function signature is `function (request, callback)` where:
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
-    * `callback` - is `function(err, uri, headers)` where:
+    * `callback` - is `function (err, uri, headers)` where:
         * `err` - internal error condition.
         * `uri` - the absolute proxy URI.
         * `headers` - optional object where each key is an HTTP request header and the value is the header content.
-* `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function(err, res, request, reply, settings, ttl)` where:
+* `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, reply, settings, ttl)` where:
     * `err` - internal or upstream error returned from attempting to contact the upstream proxy.
     * `res` - the node response object received from the upstream service. `res` is a readable stream (use the [wreck](https://github.com/hapijs/wreck) module `read` method to easily convert it to a Buffer or string).
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
@@ -78,11 +78,11 @@ As one of the handlers for hapi, it is used through the route configuration obje
 
 Proxies the request to an upstream endpoint where:
 - `options` - an object including the same keys and restrictions defined by the
- [route `proxy` handler options](#route.config.proxy).
+ [route `proxy` handler options](#options).
 
 No return value.
 
-The [response flow control rules](#flow-control) **do not** apply.
+The [response flow control rules](http://hapijs.com/api#flow-control) **do not** apply.
 
 ```js
 const handler = function (request, reply) {
@@ -124,7 +124,44 @@ server.route({
     }
 });
 ```
+### Custom `uri` template values
+    
+When using the `uri` option, there are optional **default** template values that can be injected from the incoming `request`:
 
+* `{protocol}`
+* `{host}`
+* `{port}`
+* `{path}`
+    
+```javascript
+server.route({
+    method: 'GET',
+    path: '/foo',
+    handler: {
+        proxy: {
+            uri: '{protocol}://{host}:{port}/go/to/{path}'
+        }
+    }
+});
+```
+Requests to `http://127.0.0.1:8080/foo/` would be proxied to an upstream destination of `http://127.0.0.1:8080/go/to/foo`
+
+
+Additionally, you can capture request.params values and inject them into the upstream uri value using a similar replacment strategy:
+```javascript
+server.route({
+    method: 'GET',
+    path: '/foo/{bar}',
+    handler: {
+        proxy: {
+            uri: 'https://some.upstream.service.com/some/path/to/{bar}'
+        }
+    }
+});
+```
+**Note** The default variables of `{protocol}`, `{host}`, `{port}`, `{path}` take precedence - it's best to treat those as reserved when naming your own `request.params`.
+
+    
 ### Using the `mapUri` and `onResponse` options
 
 Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client. Cannot be used together with `host`, `port`, `protocol`, or `uri`.
@@ -143,10 +180,10 @@ server.route({
             onResponse: function (err, res, request, reply, settings, ttl) {
 
                 console.log('receiving the response from the upstream.');
-                wreck.read(res, { json: true }, function (err, payload) {
+                Wreck.read(res, { json: true }, function (err, payload) {
 
                     console.log('some payload manipulation if you want to.')
-                    reply(payload);
+                    reply(payload).headers = res.headers;
                 });
             }
         }
