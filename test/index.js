@@ -83,40 +83,36 @@ describe('H2o2', () => {
                             const req = request.raw.req;
                             return new Promise((fulfill, reject) => {
 
-                                const chunks = [];
-                                req.on('error', reject);
-                                req.on('data', (chunk) => {
+                                Wreck.read(req, null, (error, payload) => {
 
-                                    chunks.push(chunk);
-                                });
-                                req.on('end', () => {
+                                    if (error) {
+                                        reject(error);
+                                    }
 
-                                    const body = JSON.parse(Buffer.concat(chunks));
+                                    const body = JSON.parse(payload.toString());
                                     body.copy = body.msg;
-                                    const buffer = new Buffer(JSON.stringify(body));
-                                    fulfill({ data: 'connor', payload: buffer });
+                                    fulfill({ data: 'connor', payload: new Buffer(JSON.stringify(body)) });
                                 });
                             });
                         },
-                        modifyResponse: (response, data) => {
+                        onResponse: (error, response, request, reply, settings, ttl, data) => {
 
                             return new Promise((fulfill, reject) => {
 
-                                const chunks = [];
-                                response.on('error', reject);
-                                response.on('data', (d) => {
+                                if (error) {
+                                    reject(error);
+                                }
 
-                                    chunks.push(d);
-                                });
-                                response.on('end', () => {
+                                Wreck.read(response, null, (err, payload) => {
 
-                                    const body = JSON.parse(Buffer.concat(chunks).toString());
+                                    if (err) {
+                                        reject(err);
+                                    }
+
+                                    const body = JSON.parse(payload.toString());
                                     body.copy = body.copy.toUpperCase();
                                     body.john = data;
-                                    fulfill({
-                                        response,
-                                        data: { body: new Buffer(JSON.stringify(body)) }
-                                    });
+                                    fulfill(reply(new Buffer(JSON.stringify(body))));
                                 });
                             });
                         }
@@ -162,37 +158,13 @@ describe('H2o2', () => {
                             const req = request.raw.req;
                             return new Promise((fulfill, reject) => {
 
-                                const chunks = [];
-                                req.on('error', reject);
-                                req.on('data', (chunk) => {
+                                Wreck.read(req, null, (error, payload) => {
 
-                                    chunks.push(chunk);
-                                });
-                                req.on('end', () => {
+                                    if (error) {
+                                        reject(error);
+                                    }
 
                                     reject({ message: 'some error' });
-                                });
-                            });
-                        },
-                        modifyResponse: (response, data) => {
-
-                            return new Promise((fulfill, reject) => {
-
-                                const chunks = [];
-                                response.on('error', reject);
-                                response.on('data', (d) => {
-
-                                    chunks.push(d);
-                                });
-                                response.on('end', () => {
-
-                                    const body = JSON.parse(Buffer.concat(chunks).toString());
-                                    body.copy = body.copy.toUpperCase();
-                                    body.john = data;
-                                    fulfill({
-                                        response,
-                                        data: { body: new Buffer(JSON.stringify(body)) }
-                                    });
                                 });
                             });
                         }
@@ -215,7 +187,7 @@ describe('H2o2', () => {
         });
     });
 
-    it('modifyResponse the request with error', { parallel: false }, (done) => {
+    it('onResponse the request with error', { parallel: false }, (done) => {
 
         const dataHandler = function (request, reply) {
 
@@ -255,17 +227,19 @@ describe('H2o2', () => {
                                 });
                             });
                         },
-                        modifyResponse: (response, data) => {
+                        onResponse: (error, response, request, reply, settings, ttl, data) => {
 
                             return new Promise((fulfill, reject) => {
 
-                                const chunks = [];
-                                response.on('error', reject);
-                                response.on('data', (d) => {
+                                if (error) {
+                                    reject(error);
+                                }
 
-                                    chunks.push(d);
-                                });
-                                response.on('end', () => {
+                                Wreck.read(response, null, (err, payload) => {
+
+                                    if (err) {
+                                        reject(err);
+                                    }
 
                                     reject({ message: 'some error' });
                                 });
@@ -283,6 +257,10 @@ describe('H2o2', () => {
             (res) => {
 
                 const payload = JSON.parse(res.payload);
+
+                console.log('---payload');
+                console.log(payload);
+
                 expect(payload.statusCode).to.equal(400);
                 expect(payload.message).to.equal('some error');
                 done();
