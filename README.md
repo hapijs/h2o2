@@ -125,14 +125,14 @@ server.route({
 });
 ```
 ### Custom `uri` template values
-    
+
 When using the `uri` option, there are optional **default** template values that can be injected from the incoming `request`:
 
 * `{protocol}`
 * `{host}`
 * `{port}`
 * `{path}`
-    
+
 ```javascript
 server.route({
     method: 'GET',
@@ -161,7 +161,7 @@ server.route({
 ```
 **Note** The default variables of `{protocol}`, `{host}`, `{port}`, `{path}` take precedence - it's best to treat those as reserved when naming your own `request.params`.
 
-    
+
 ### Using the `mapUri` and `onResponse` options
 
 Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client. Cannot be used together with `host`, `port`, `protocol`, or `uri`.
@@ -177,7 +177,7 @@ server.route({
                 console.log('doing some aditional stuff before redirecting');
                 callback(null, 'https://some.upstream.service.com/');
             },
-            onResponse: function (err, res, request, reply, settings, ttl) {
+            onResponse: function (err, res, request, reply, settings, ttl, data) {
 
                 console.log('receiving the response from the upstream.');
                 Wreck.read(res, { json: true }, function (err, payload) {
