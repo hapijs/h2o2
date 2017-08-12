@@ -92,7 +92,8 @@ describe('H2o2', () => {
 
                 expect(response.statusCode).to.equal(200);
                 expect(response.payload).to.contain('John Doe');
-                expect(response.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
+                expect(response.headers['set-cookie'][0]).to.include(['test=123']);
+                expect(response.headers['set-cookie'][1]).to.include(['auto=xyz']);
                 expect(response.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
 
                 server.inject('/profile', (res) => {
@@ -528,7 +529,7 @@ describe('H2o2', () => {
             server.inject('/', (res) => {
 
                 expect(res.statusCode).to.equal(404);
-                expect(res.headers['set-cookie'][0]).to.equal('a=b');
+                expect(res.headers['set-cookie'][0]).to.include('a=b');
                 done();
             });
         });
@@ -1029,7 +1030,8 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
+                expect(res.headers['set-cookie'][0]).to.include(['test=123']);
+                expect(res.headers['set-cookie'][1]).to.include(['auto=xyz']);
                 done();
             });
         });
@@ -1061,7 +1063,8 @@ describe('H2o2', () => {
 
                 expect(res.statusCode).to.equal(200);
                 expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie']).to.equal(['test=123', 'auto=xyz']);
+                expect(res.headers['set-cookie'][0]).to.include(['test=123']);
+                expect(res.headers['set-cookie'][1]).to.include(['auto=xyz']);
                 done();
             });
         });
