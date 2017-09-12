@@ -1348,7 +1348,7 @@ describe('H2o2', () => {
             path: '/item/{param_a}/{param_b}',
             handler: function (request, reply) {
 
-                return reply({ a: request.params.param_a, b:request.params.param_b });
+                return reply({ a: request.params.param_a, b: request.params.param_b });
             }
         });
 
@@ -1825,6 +1825,43 @@ describe('H2o2', () => {
                 handler: function (request, reply) {
 
                     return reply.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+                }
+            });
+
+            server.inject('/', (res) => {
+
+                expect(res.statusCode).to.equal(200);
+                expect(res.payload).to.equal('ok');
+                done();
+            });
+        });
+    });
+
+    it('uses custom TLS settings', (done) => {
+
+        const upstream = new Hapi.Server();
+        upstream.connection({ tls: tlsOptions });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, reply) {
+
+                return reply('ok');
+            }
+        });
+
+        upstream.start(() => {
+
+            const server = new Hapi.Server();
+            server.connection({});
+            server.register({ register: H2o2.register, options: { secureProtocol: 'TLSv1_1_method', ciphers: 'DES-CBC3-SHA' } });
+
+            server.route({
+                method: 'GET',
+                path: '/',
+                handler: function (request, reply) {
+
+                    return reply.proxy({ host: '127.0.0.1', protocol: 'https', port: upstream.info.port, rejectUnauthorized: false });
                 }
             });
 
