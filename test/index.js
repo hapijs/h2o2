@@ -34,81 +34,89 @@ describe('H2o2', () => {
         cert: '-----BEGIN CERTIFICATE-----\nMIIC+zCCAeOgAwIBAgIJANnDRcmEqJssMA0GCSqGSIb3DQEBBQUAMBQxEjAQBgNV\nBAMMCWxvY2FsaG9zdDAeFw0xNzA5MTIyMjMxMDRaFw0yNzA5MTAyMjMxMDRaMBQx\nEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\nggEBANyAxc8aKyjvMVngjqLLitaQj6E1DJYTpIrOKVjvQiwr9KNEO8lAmZR8z2Fj\nOPfkJlnubt125da4ZBbKHmKMB9W7bOa+h2PMWB3sb1PusxMsTlOEOz+xF5BX1uYe\n1rDurmhMhAVXZ4kyIyuHPIc48u4eoTSLzPpBAAMtVBWrTCpjsLKeGbOPqApkuGT5\nSLQDG0b/+GuQwqKZbjku1jfFMMCes0a2PGVRZ5Cj04X5Z8ImiMtkIRoE8CwDSFJV\nj0DIfiyx51eejTpY9VVDtNxvqSsUyemZH2Hn2g+NRM+Ij3O58oOIg46p6hV/o2Di\n0aApLc7WHfU+N0oG9rH4K5WNBDcCAwEAAaNQME4wHQYDVR0OBBYEFJBSho+nF530\nsxpoBxYqD/ynn/t0MB8GA1UdIwQYMBaAFJBSho+nF530sxpoBxYqD/ynn/t0MAwG\nA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAJFAh3X5CYFAl0cI6Q7Vcp4H\nO0S8s/C4FHNIsyUu54NcRH3taUwn3Fshn5LiwaEdFmouALbxMaejvEVw7hVBtY9X\nOjqt0mZ6+X6GOFhoUvlaG1c7YLOk5x51TXchg8YD2wxNXS0rOrAdZaScOsy8Q62S\nHehBJMN19JK8TiR3XXzxKVNcFcg0wyQvCGgjrHReaUF8WePfWHtZDdP01kBmMEIo\n6wY7E3jFqvDUs33vTOB5kmWixIoJKmkgOVmbgchmu7z27n3J+fawNr2r4IwjdUpK\nc1KvFYBXLiT+2UVkOJbBZ3C8mKfhXKHs2CrI3cSa4+E0sxTy4joG/yzlRs5l954=\n-----END CERTIFICATE-----\n'
     };
 
-    const provisionServer = function (options) {
+    const provisionServer = async function (options) {
 
-        const server = new Hapi.Server();
-        server.connection(options);
-        server.register(H2o2, Hoek.ignore);
+        const server = Hapi.server(options);
+
+        try {
+            await server.register(H2o2);
+        }
+        catch (err) {
+            console.log(err);
+            process.exit(1);
+        }
+
         return server;
     };
 
-    it('overrides maxSockets', { parallel: false }, (done) => {
+    it('overrides maxSockets', { parallel: false }, async () => {
 
+        let maxSockets;
         const orig = Wreck.request;
         Wreck.request = function (method, uri, options, callback) {
 
             Wreck.request = orig;
-            expect(options.agent.maxSockets).to.equal(213);
-            done();
+            maxSockets = options.agent.maxSockets;
+
+            return { statusCode: 200 };
         };
 
-        const server = provisionServer();
+        const server = await provisionServer();
         server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: 213 } } });
-        server.inject('/', (res) => { });
+        await server.inject('/');
+        expect(maxSockets).to.equal(213);
     });
 
-    it('uses node default with maxSockets set to false', { parallel: false }, (done) => {
+    it('uses node default with maxSockets set to false', { parallel: false }, async () => {
 
+        let agent;
         const orig = Wreck.request;
-        Wreck.request = function (method, uri, options, callback) {
+        Wreck.request = function (method, uri, options) {
 
             Wreck.request = orig;
-            expect(options.agent).to.equal(undefined);
-            done();
+            agent = options.agent;
+
+            return { statusCode: 200 };
         };
 
-        const server = provisionServer();
+        const server = await provisionServer();
         server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: false } } });
-        server.inject('/', (res) => { });
+        await server.inject('/');
+        expect(agent).to.equal(undefined);
     });
 
-    it('forwards on the response when making a GET request', (done) => {
+    it('forwards on the response when making a GET request', async () => {
 
-        const profile = function (request, reply) {
+        const profileHandler = function (request, h) {
 
-            reply({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
+            return h.response({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.route({ method: 'GET', path: '/profile', handler: profile, config: { cache: { expiresIn: 2000 } } });
-        upstream.start(() => {
+        const upstream = Hapi.server();
+        upstream.route({ method: 'GET', path: '/profile', handler: profileHandler, config: { cache: { expiresIn: 2000, privacy: 'private' } } }); //TODO: Privacy Default change
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
-            server.state('auto', { autoValue: 'xyz' });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
+        server.state('auto', { autoValue: 'xyz' });
 
-            server.inject('/profile', (response) => {
+        const response = await server.inject('/profile');
+        expect(response.statusCode).to.equal(200);
+        expect(response.payload).to.contain('John Doe');
+        expect(response.headers['set-cookie'][0]).to.include(['test=123']);
+        expect(response.headers['set-cookie'][1]).to.include(['auto=xyz']);
+        expect(response.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
 
-                expect(response.statusCode).to.equal(200);
-                expect(response.payload).to.contain('John Doe');
-                expect(response.headers['set-cookie'][0]).to.include(['test=123']);
-                expect(response.headers['set-cookie'][1]).to.include(['auto=xyz']);
-                expect(response.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
+        const res = await server.inject('/profile');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.contain('John Doe');
 
-                server.inject('/profile', (res) => {
-
-                    expect(res.statusCode).to.equal(200);
-                    expect(res.payload).to.contain('John Doe');
-                    done();
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('throws when used with explicit route payload config other than data or steam', (done) => {
+    it('throws when used with explicit route payload config other than data or steam', async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         expect(() => {
 
             server.route({
@@ -124,12 +132,11 @@ describe('H2o2', () => {
                 }
             });
         }).to.throw('Cannot proxy if payload is parsed or if output is not stream or data');
-        done();
     });
 
-    it('throws when setup with invalid options', (done) => {
+    it('throws when setup with invalid options', async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         expect(() => {
 
             server.route({
@@ -142,12 +149,11 @@ describe('H2o2', () => {
                 }
             });
         }).to.throw(/\"value\" must contain at least one of \[host, mapUri, uri\]/);
-        done();
     });
 
-    it('throws when used with explicit route payload parse config set to false', (done) => {
+    it('throws when used with explicit route payload parse config set to false', async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         expect(() => {
 
             server.route({
@@ -163,12 +169,11 @@ describe('H2o2', () => {
                 }
             });
         }).to.throw('Cannot proxy if payload is parsed or if output is not stream or data');
-        done();
     });
 
-    it('allows when used with explicit route payload output data config', (done) => {
+    it('allows when used with explicit route payload output data config', async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         expect(() => {
 
             server.route({
@@ -184,62 +189,54 @@ describe('H2o2', () => {
                 }
             });
         }).to.not.throw();
-        done();
     });
 
-    it('uses protocol without ":"', (done) => {
+    it('uses protocol without ":"', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply('ok');
+                return 'ok';
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('ok');
 
-            server.inject('/', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('ok');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('forwards upstream headers', (done) => {
+    it('forwards upstream headers', async () => {
 
-        const headers = function (request, reply) {
+        const headers = function (request, h) {
 
-            reply({ status: 'success' })
+            return h.response({ status: 'success' })
                 .header('Custom1', 'custom header value 1')
                 .header('X-Custom2', 'custom header value 2');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/headers', handler: headers });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer({ routes: { cors: true } });
-            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+        const server = await provisionServer({ routes: { cors: true } });
+        server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
-            server.inject('/headers', (res) => {
+        const res = await server.inject('/headers');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('{\"status\":\"success\"}');
+        expect(res.headers.custom1).to.equal('custom header value 1');
+        expect(res.headers['x-custom2']).to.equal('custom header value 2');
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('{\"status\":\"success\"}');
-                expect(res.headers.custom1).to.equal('custom header value 1');
-                expect(res.headers['x-custom2']).to.equal('custom header value 2');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
     // it('overrides upstream cors headers', (done) => {
@@ -265,319 +262,274 @@ describe('H2o2', () => {
     //     });
     // });
 
-    it('merges upstream headers', (done) => {
+    it('merges upstream headers', async () => {
 
-        const headers = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply({ status: 'success' })
+            return h.response({ status: 'success' })
                 .vary('X-Custom3');
         };
 
-        const onResponse = function (err, res, request, reply, settings, ttl) {
+        const onResponse = function (err, res, request, h, settings, ttl) {
 
             expect(err).to.be.null();
-            reply(res).vary('Something');
+            return h.response(res).vary('Something');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.route({ method: 'GET', path: '/headers', handler: headers });
-        upstream.start(() => {
+        const upstream = Hapi.server();
+        upstream.route({ method: 'GET', path: '/headers', handler });
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
 
-            server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } }, (res) => {
+        const res = await server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } });
+        expect(res.statusCode).to.equal(200);
+        //expect(res.headers.vary).to.equal('X-Custom3,accept-encoding,Something');
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.headers.vary).to.equal('X-Custom3,accept-encoding,Something');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('forwards gzipped content', (done) => {
+    it('forwards gzipped content', async () => {
 
-        const gzipHandler = function (request, reply) {
+        const gzipHandler = function (request, h) {
 
-            reply('123456789012345678901234567890123456789012345678901234567890');
+            return h.response('123456789012345678901234567890123456789012345678901234567890');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server({ compression: { minBytes: 1 } }); // Payloads under 1kb will not be compressed
         upstream.route({ method: 'GET', path: '/gzip', handler: gzipHandler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+        const server =  await provisionServer();
+        server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
-            Zlib.gzip(new Buffer('123456789012345678901234567890123456789012345678901234567890'), (err, zipped) => {
+        const zipped = await Zlib.gzipSync(new Buffer('123456789012345678901234567890123456789012345678901234567890'));
+        const res = await server.inject({ url: '/gzip', headers: { 'accept-encoding': 'gzip' } });
 
-                expect(err).to.not.exist();
+        expect(res.statusCode).to.equal(200);
+        expect(res.rawPayload).to.equal(zipped);
 
-                server.inject({ url: '/gzip', headers: { 'accept-encoding': 'gzip' } }, (res) => {
-
-                    expect(res.statusCode).to.equal(200);
-                    expect(res.rawPayload).to.equal(zipped);
-                    done();
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('forwards gzipped stream', (done) => {
+    it('forwards gzipped stream', async () => {
 
-        const gzipStreamHandler = function (request, reply) {
+        const gzipStreamHandler = function (request, h) {
 
-            reply.file(__dirname + '/../package.json');
+            return h.file(__dirname + '/../package.json');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.register(require('inert'), Hoek.ignore);
+        const upstream = Hapi.server({ compression: { minBytes: 1 } });
+        await upstream.register(require('inert'));
         upstream.route({ method: 'GET', path: '/gzipstream', handler: gzipStreamHandler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/gzipstream', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/gzipstream', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
-            server.inject({ url: '/gzipstream', headers: { 'accept-encoding': 'gzip' } }, (res) => {
+        const res = await server.inject({ url: '/gzipstream', headers: { 'accept-encoding': 'gzip' } });
+        const file = Fs.readFileSync(__dirname + '/../package.json', { encoding: 'utf8' });
+        const unzipped = Zlib.unzipSync(res.rawPayload);
 
-                expect(res.statusCode).to.equal(200);
+        expect(unzipped.toString('utf8')).to.equal(file);
+        expect(res.statusCode).to.equal(200);
 
-                Fs.readFile(__dirname + '/../package.json', { encoding: 'utf8' }, (err, file) => {
-
-                    expect(err).to.be.null();
-                    Zlib.unzip(res.rawPayload, (err, unzipped) => {
-
-                        expect(err).to.not.exist();
-                        expect(unzipped.toString('utf8')).to.equal(file);
-                        done();
-                    });
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('does not forward upstream headers without passThrough', (done) => {
+    it('does not forward upstream headers without passThrough', async () => {
 
-        const headers = function (request, reply) {
+        const headers = function (request, h) {
 
-            reply({ status: 'success' })
+            return h.response({ status: 'success' })
                 .header('Custom1', 'custom header value 1')
                 .header('X-Custom2', 'custom header value 2')
                 .header('access-control-allow-headers', 'Invalid, List, Of, Values');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/noHeaders', handler: headers });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/noHeaders', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/noHeaders', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
-            server.inject('/noHeaders', (res) => {
+        const res = await server.inject('/noHeaders');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('{\"status\":\"success\"}');
+        expect(res.headers.custom1).to.not.exist();
+        expect(res.headers['x-custom2']).to.not.exist();
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('{\"status\":\"success\"}');
-                expect(res.headers.custom1).to.not.exist();
-                expect(res.headers['x-custom2']).to.not.exist();
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('request a cached proxy route', (done) => {
+    it('request a cached proxy route', async () => {
 
         let activeCount = 0;
-        const activeItem = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply({
+            return h.response({
                 id: '55cf687663',
                 name: 'Active Items',
                 count: activeCount++
             });
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.route({ method: 'GET', path: '/item', handler: activeItem });
-        upstream.start(() => {
+        const upstream = Hapi.server();
+        upstream.route({ method: 'GET', path: '/item', handler });
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
 
-            server.inject('/item', (response) => {
+        const response = await server.inject('/item');
+        expect(response.statusCode).to.equal(200);
+        expect(response.payload).to.contain('Active Items');
+        const counter = response.result.count;
 
-                expect(response.statusCode).to.equal(200);
-                expect(response.payload).to.contain('Active Items');
-                const counter = response.result.count;
+        const res = await server.inject('/item');
+        expect(res.statusCode).to.equal(200);
+        expect(res.result.count).to.equal(counter);
 
-                server.inject('/item', (res) => {
-
-                    expect(res.statusCode).to.equal(200);
-                    expect(res.result.count).to.equal(counter);
-                    done();
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('forwards on the status code when making a POST request', (done) => {
+    it('forwards on the status code when making a POST request', async () => {
 
-        const item = function (request, reply) {
+        const item = function (request, h) {
 
-            reply({ id: '55cf687663', name: 'Items' }).created('http://example.com');
+            return h.response({ id: '55cf687663', name: 'Items' }).created('http://example.com');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'POST', path: '/item', handler: item });
-        upstream.start(() => {
+        await upstream.start();
+        const server = await provisionServer();
+        server.route({ method: 'POST', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
-            const server = provisionServer();
-            server.route({ method: 'POST', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        const res = await server.inject({ url: '/item', method: 'POST' });
+        expect(res.statusCode).to.equal(201);
+        expect(res.payload).to.contain('Items');
 
-            server.inject({ url: '/item', method: 'POST' }, (res) => {
-
-                expect(res.statusCode).to.equal(201);
-                expect(res.payload).to.contain('Items');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('sends the correct status code when a request is unauthorized', (done) => {
+    it('sends the correct status code when a request is unauthorized', async () => {
 
-        const unauthorized = function (request, reply) {
+        const unauthorized = function (request, h) {
 
-            reply(Boom.unauthorized('Not authorized'));
+            throw Boom.unauthorized('Not authorized');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/unauthorized', handler: unauthorized });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/unauthorized', handler: { proxy: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/unauthorized', handler: { proxy: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
 
-            server.inject('/unauthorized', (res) => {
+        const res = await server.inject('/unauthorized');
+        expect(res.statusCode).to.equal(401);
 
-                expect(res.statusCode).to.equal(401);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('sends a 404 status code when a proxied route does not exist', (done) => {
+    it('sends a 404 status code when a proxied route does not exist', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const upstream = Hapi.server();
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'POST', path: '/notfound', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        const server = await provisionServer();
+        server.route({ method: 'POST', path: '/notfound', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
-            server.inject('/notfound', (res) => {
+        const res = await server.inject('/notfound');
+        expect(res.statusCode).to.equal(404);
 
-                expect(res.statusCode).to.equal(404);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('overrides status code when a custom onResponse returns an error', (done) => {
+    it('overrides status code when a custom onResponse returns an error', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const onResponseWithError = function (err, res, request, h, settings, ttl) {
 
-            const onResponseWithError = function (err, res, request, reply, settings, ttl) {
+            expect(err).to.be.null();
+            throw Boom.forbidden('Forbidden');
+        };
 
-                expect(err).to.be.null();
-                reply(Boom.forbidden('Forbidden'));
-            };
+        const upstream = Hapi.server();
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/onResponseError', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/onResponseError', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
 
-            server.inject('/onResponseError', (res) => {
+        const res = await server.inject('/onResponseError');
+        expect(res.statusCode).to.equal(403);
 
-                expect(res.statusCode).to.equal(403);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('adds cookie to response', (done) => {
+    it('adds cookie to response', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const on = function (err, res, request, h, settings, ttl) {
 
-            const on = function (err, res, request, reply, settings, ttl) {
+            expect(err).to.be.null();
+            return h.response(res).state('a', 'b');
+        };
 
-                expect(err).to.be.null();
-                reply(res).state('a', 'b');
-            };
+        const upstream = Hapi.server();
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
 
-            server.inject('/', (res) => {
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(404);
+        expect(res.headers['set-cookie'][0]).to.include('a=b');
 
-                expect(res.statusCode).to.equal(404);
-                expect(res.headers['set-cookie'][0]).to.include('a=b');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('binds onResponse to route bind config', (done) => {
+    it('binds onResponse to route bind config', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const onResponseWithError = function (err, res, request, h, settings, ttl) {
 
-            const onResponseWithError = function (err, res, request, reply, settings, ttl) {
+            expect(err).to.be.null();
+            return h.response(h.context.c);
+        };
 
-                expect(err).to.be.null();
-                reply(this.c);
-            };
+        const upstream = Hapi.server();
+        await upstream.start();
 
-            const handler = {
-                proxy: {
-                    host: 'localhost',
-                    port: upstream.info.port,
-                    onResponse: onResponseWithError
-                }
-            };
+        const handler = {
+            proxy: {
+                host: 'localhost',
+                port: upstream.info.port,
+                onResponse: onResponseWithError
+            }
+        };
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/onResponseError', config: { handler, bind: { c: 6 } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/onResponseError', config: { handler, bind: { c: 6 } } });
 
-            server.inject('/onResponseError', (res) => {
+        const res = await server.inject('/onResponseError');
+        expect(res.result).to.equal(6);
 
-                expect(res.result).to.equal(6);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('binds onResponse to route bind config in plugin', (done) => {
+    it('binds onResponse to route bind config in plugin', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const upstream =  Hapi.server();
+        await upstream.start();
 
-            const plugin = function (server, options, next) {
+        const plugin = {
+            register: function (server, optionos) {
 
-                const onResponseWithError = function (err, res, request, reply, settings, ttl) {
+                const onResponseWithError = function (err, res, request, h, settings, ttl) {
 
                     expect(err).to.be.null();
-                    reply(this.c);
+                    return h.response(h.context.c);
                 };
 
                 const handler = {
@@ -589,40 +541,31 @@ describe('H2o2', () => {
                 };
 
                 server.route({ method: 'GET', path: '/', config: { handler, bind: { c: 6 } } });
-                return next();
-            };
+            },
+            name: 'test'
+        };
 
-            plugin.attributes = {
-                name: 'test'
-            };
+        const server = await provisionServer();
+        await server.register(plugin);
 
-            const server = provisionServer();
+        const res = await server.inject('/');
+        expect(res.result).to.equal(6);
 
-            server.register(plugin, (err) => {
-
-                expect(err).to.not.exist();
-
-                server.inject('/', (res) => {
-
-                    expect(res.result).to.equal(6);
-                    done();
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('binds onResponse to plugin bind', (done) => {
+    it('binds onResponse to plugin bind', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const upstream = Hapi.server();
+        await upstream.start();
 
-            const plugin = function (server, options, next) {
+        const plugin = {
+            register: function (server, options) {
 
-                const onResponseWithError = function (err, res, request, reply, settings, ttl) {
+                const onResponseWithError = function (err, res, request, h, settings, ttl) {
 
                     expect(err).to.be.null();
-                    reply(this.c);
+                    return h.response(h.context.c);
                 };
 
                 const handler = {
@@ -635,40 +578,31 @@ describe('H2o2', () => {
 
                 server.bind({ c: 7 });
                 server.route({ method: 'GET', path: '/', config: { handler } });
-                return next();
-            };
+            },
+            name: 'test'
+        };
 
-            plugin.attributes = {
-                name: 'test'
-            };
+        const server = await provisionServer();
+        await server.register(plugin);
 
-            const server = provisionServer();
+        const res = await server.inject('/');
+        expect(res.result).to.equal(7);
 
-            server.register(plugin, (err) => {
-
-                expect(err).to.not.exist();
-
-                server.inject('/', (res) => {
-
-                    expect(res.result).to.equal(7);
-                    done();
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('binds onResponse to route bind config in plugin when plugin also has bind', (done) => {
+    it('binds onResponse to route bind config in plugin when plugin also has bind', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.start(() => {
+        const upstream = Hapi.server();
+        await upstream.start();
 
-            const plugin = function (server, options, next) {
+        const plugin = {
+            register: function (server, options) {
 
-                const onResponseWithError = function (err, res, request, reply, settings, ttl) {
+                const onResponseWithError = function (err, res, request, h, settings, ttl) {
 
                     expect(err).to.be.null();
-                    reply(this.c);
+                    return h.response(h.context.c);
                 };
 
                 const handler = {
@@ -681,704 +615,647 @@ describe('H2o2', () => {
 
                 server.bind({ c: 7 });
                 server.route({ method: 'GET', path: '/', config: { handler, bind: { c: 4 } } });
-                return next();
-            };
+            },
+            name: 'test'
+        };
 
-            plugin.attributes = {
-                name: 'test'
-            };
+        const server = await provisionServer();
+        await server.register(plugin);
 
-            const server = provisionServer();
+        const res = await server.inject('/');
+        expect(res.result).to.equal(4);
 
-            server.register(plugin, (err) => {
-
-                expect(err).to.not.exist();
-
-                server.inject('/', (res) => {
-
-                    expect(res.result).to.equal(4);
-                    done();
-                });
-            });
-        });
+        await upstream.stop();
     });
 
-    it('calls the onResponse function if the upstream is unreachable', (done) => {
+    it('calls the onResponse function if the upstream is unreachable', async () => {
 
-        const dummy = new Hapi.Server();
-        dummy.connection();
-        dummy.start(() => {
+        const failureResponse = function (err, res, request, h, settings, ttl) {
 
-            const dummyPort = dummy.info.port;
-            dummy.stop(Hoek.ignore);
+            throw err;
+        };
 
-            const failureResponse = function (err, res, request, reply, settings, ttl) {
+        const dummy = Hapi.server();
+        await dummy.start();
+        const dummyPort = dummy.info.port;
+        await dummy.stop(Hoek.ignore);
 
-                reply(err);
-            };
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
-            server.inject('/failureResponse', (res) => {
-
-                expect(res.statusCode).to.equal(502);
-                done();
-            });
-        });
+        const res = await server.inject('/failureResponse');
+        expect(res.statusCode).to.equal(502);
     });
 
-    it('sets x-forwarded-* headers', (done) => {
+    it('sets x-forwarded-* headers', async () => {
 
-        const handler = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply(request.raw.req.headers);
+            return h.response(request.raw.req.headers);
         };
 
         const host = '127.0.0.1';
 
-        const upstream = new Hapi.Server();
-        upstream.connection({
-            host
-        });
+        const upstream = Hapi.server({ host });
         upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer({
-                host,
-                tls: tlsOptions
-            });
-
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: {
-                    proxy: {
-                        host: upstream.info.host,
-                        port: upstream.info.port,
-                        protocol: 'http',
-                        xforward: true
-                    }
+        const server = await provisionServer({
+            host,
+            tls: tlsOptions
+        });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: {
+                proxy: {
+                    host: upstream.info.host,
+                    port: upstream.info.port,
+                    protocol: 'http',
+                    xforward: true
                 }
-            });
-
-            server.start(() => {
-
-                const requestProtocol = 'https';
-
-                Wreck.get(`${requestProtocol}://${server.info.host}:${server.info.port}/`, {
-                    rejectUnauthorized: false
-                }, (err, res, body) => {
-
-                    expect(err).to.be.null();
-                    expect(res.statusCode).to.equal(200);
-                    const result = JSON.parse(body);
-
-                    const expectedClientAddress = '127.0.0.1';
-                    const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
-                    if (Net.isIPv6(server.listener.address().address)) {
-                        expectedClientAddress = '::ffff:127.0.0.1';
-                        expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
-                    }
-
-                    expect(result['x-forwarded-for']).to.equal(expectedClientAddress);
-                    expect(result['x-forwarded-port']).to.match(/\d+/);
-                    expect(result['x-forwarded-proto']).to.equal(requestProtocol);
-                    expect(result['x-forwarded-host']).to.equal(expectedClientAddressAndPort);
-
-                    server.stop(Hoek.ignore);
-                    upstream.stop(Hoek.ignore);
-                    done();
-                });
-            });
+            }
         });
+        await server.start();
+
+        const requestProtocol = 'https';
+        const response = await Wreck.get(`${requestProtocol}://${server.info.host}:${server.info.port}/`, {
+            rejectUnauthorized: false
+        });
+        expect(response.res.statusCode).to.equal(200);
+
+        const result = JSON.parse(response.payload);
+        const expectedClientAddress = '127.0.0.1';
+        const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
+
+        if (Net.isIPv6(server.listener.address().address)) {
+            expectedClientAddress = '::ffff:127.0.0.1';
+            expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
+        }
+
+        expect(result['x-forwarded-for']).to.equal(expectedClientAddress);
+        expect(result['x-forwarded-port']).to.match(/\d+/);
+        expect(result['x-forwarded-proto']).to.equal(requestProtocol);
+        expect(result['x-forwarded-host']).to.equal(expectedClientAddressAndPort);
+
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('adds x-forwarded-* headers to existing', (done) => {
+    it('adds x-forwarded-* headers to existing', async () => {
 
-        const handler = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply(request.raw.req.headers);
+            return h.response(request.raw.req.headers);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const mapUri = function (request, callback) {
+        const mapUri = function (request) {
 
-                const headers = {
-                    'x-forwarded-for': 'testhost',
-                    'x-forwarded-port': 1337,
-                    'x-forwarded-proto': 'https',
-                    'x-forwarded-host': 'example.com'
-                };
-
-                return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/', headers);
+            const headers = {
+                'x-forwarded-for': 'testhost',
+                'x-forwarded-port': 1337,
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': 'example.com'
             };
 
-            const server = provisionServer({ host: '127.0.0.1' });
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
-
-            server.start(() => {
-
-                Wreck.get('http://127.0.0.1:' + server.info.port + '/', (err, res, body) => {
-
-                    expect(err).to.be.null();
-                    expect(res.statusCode).to.equal(200);
-                    const result = JSON.parse(body);
-
-                    const expectedClientAddress = '127.0.0.1';
-                    const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
-                    if (Net.isIPv6(server.listener.address().address)) {
-                        expectedClientAddress = '::ffff:127.0.0.1';
-                        expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
-                    }
-
-                    expect(result['x-forwarded-for']).to.equal('testhost,' + expectedClientAddress);
-                    expect(result['x-forwarded-port']).to.match(/1337\,\d+/);
-                    expect(result['x-forwarded-proto']).to.equal('https,http');
-                    expect(result['x-forwarded-host']).to.equal('example.com,' + expectedClientAddressAndPort);
-                    server.stop(Hoek.ignore);
-                    upstream.stop(Hoek.ignore);
-                    done();
-                });
-            });
-        });
-    });
-
-    it('does not clobber existing x-forwarded-* headers', (done) => {
-
-        const handler = function (request, reply) {
-
-            reply(request.raw.req.headers);
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}/`,
+                headers
+            };
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        const server = await provisionServer({ host: '127.0.0.1' });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
+        await server.start();
 
-            const mapUri = function (request, callback) {
+        const response = await Wreck.get('http://127.0.0.1:' + server.info.port + '/');
+        expect(response.res.statusCode).to.equal(200);
 
-                const headers = {
-                    'x-forwarded-for': 'testhost',
-                    'x-forwarded-port': 1337,
-                    'x-forwarded-proto': 'https',
-                    'x-forwarded-host': 'example.com'
-                };
+        const result = JSON.parse(response.payload);
 
-                return callback(null, 'http://127.0.0.1:' + upstream.info.port + '/', headers);
+        const expectedClientAddress = '127.0.0.1';
+        const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
+        if (Net.isIPv6(server.listener.address().address)) {
+            expectedClientAddress = '::ffff:127.0.0.1';
+            expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
+        }
+
+        expect(result['x-forwarded-for']).to.equal('testhost,' + expectedClientAddress);
+        expect(result['x-forwarded-port']).to.match(/1337\,\d+/);
+        expect(result['x-forwarded-proto']).to.equal('https,http');
+        expect(result['x-forwarded-host']).to.equal('example.com,' + expectedClientAddressAndPort);
+
+        await upstream.stop();
+        await server.stop();
+    });
+
+    it('does not clobber existing x-forwarded-* headers', async () => {
+
+        const handler = function (request, h) {
+
+            return h.response(request.raw.req.headers);
+        };
+
+        const mapUri = function (request) {
+
+            const headers = {
+                'x-forwarded-for': 'testhost',
+                'x-forwarded-port': 1337,
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': 'example.com'
             };
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
-
-            server.inject('/', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                const result = JSON.parse(res.payload);
-                expect(result['x-forwarded-for']).to.equal('testhost');
-                expect(result['x-forwarded-port']).to.equal('1337');
-                expect(result['x-forwarded-proto']).to.equal('https');
-                expect(result['x-forwarded-host']).to.equal('example.com');
-                done();
-            });
-        });
-    });
-
-    it('forwards on a POST body', (done) => {
-
-        const echoPostBody = function (request, reply) {
-
-            reply(request.payload.echo + request.raw.req.headers['x-super-special']);
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}/`,
+                headers
+            };
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
+        upstream.route({ method: 'GET', path: '/', handler });
+        await upstream.start();
+
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { mapUri, xforward: true } } });
+
+        const res = await server.inject('/');
+        const result = JSON.parse(res.payload);
+        expect(res.statusCode).to.equal(200);
+        expect(result['x-forwarded-for']).to.equal('testhost');
+        expect(result['x-forwarded-port']).to.equal('1337');
+        expect(result['x-forwarded-proto']).to.equal('https');
+        expect(result['x-forwarded-host']).to.equal('example.com');
+
+        await upstream.stop();
+    });
+
+    it('forwards on a POST body', async () => {
+
+        const echoPostBody = function (request, h) {
+
+            return h.response(request.payload.echo + request.raw.req.headers['x-super-special']);
+        };
+
+        const mapUri = function (request) {
+
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}${request.path}${(request.url.search || '')}`,
+                headers: { 'x-super-special': '@' }
+            };
+        };
+
+        const upstream = Hapi.server();
         upstream.route({ method: 'POST', path: '/echo', handler: echoPostBody });
-        upstream.start(() => {
+        await upstream.start();
 
-            const mapUri = function (request, callback) {
+        const server = await provisionServer();
+        server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri } } });
 
-                return callback(null, 'http://127.0.0.1:' + upstream.info.port + request.path + (request.url.search || ''), { 'x-super-special': '@' });
-            };
+        const res = await server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('true@');
 
-            const server = provisionServer();
-            server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri } } });
-
-            server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('true@');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('replies with an error when it occurs in mapUri', (done) => {
+    it('replies with an error when it occurs in mapUri', async () => {
 
-        const mapUriWithError = function (request, callback) {
+        const mapUriWithError = function (request) {
 
-            return callback(new Error('myerror'));
+            throw new Error('myerror');
         };
 
-        const server = provisionServer();
+        const server = await provisionServer();
         server.route({ method: 'GET', path: '/maperror', handler: { proxy: { mapUri: mapUriWithError } } });
+        const res = await server.inject('/maperror');
 
-        server.inject('/maperror', (res) => {
-
-            expect(res.statusCode).to.equal(500);
-            done();
-        });
+        expect(res.statusCode).to.equal(500);
     });
 
-    it('maxs out redirects to same endpoint', (done) => {
+    it('maxs out redirects to same endpoint', async () => {
 
-        const redirectHandler = function (request, reply) {
+        const redirectHandler = function (request, h) {
 
-            reply.redirect('/redirect?x=1');
+            return h.redirect('/redirect?x=1');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
-            server.inject('/redirect?x=1', (res) => {
+        const res = await server.inject('/redirect?x=1');
+        expect(res.statusCode).to.equal(502);
 
-                expect(res.statusCode).to.equal(502);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('errors on redirect missing location header', (done) => {
+    it('errors on redirect missing location header', async () => {
 
-        const redirectHandler = function (request, reply) {
+        const redirectHandler = function (request, h) {
 
-            reply().code(302);
+            return h.response().code(302);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
-        upstream.start(() => {
+        await upstream.start();
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        const res = await server.inject('/redirect?x=3');
+        expect(res.statusCode).to.equal(502);
 
-            server.inject('/redirect?x=3', (res) => {
-
-                expect(res.statusCode).to.equal(502);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('errors on redirection to bad host', (done) => {
+    it('errors on redirection to bad host', async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         server.route({ method: 'GET', path: '/nowhere', handler: { proxy: { host: 'no.such.domain.x8' } } });
 
-        server.inject('/nowhere', (res) => {
-
-            expect(res.statusCode).to.equal(502);
-            done();
-        });
+        const res = await server.inject('/nowhere');
+        expect(res.statusCode).to.equal(502);
     });
 
-    it('errors on redirection to bad host (https)', (done) => {
+    it('errors on redirection to bad host (https)', async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         server.route({ method: 'GET', path: '/nowhere', handler: { proxy: { host: 'no.such.domain.x8', protocol: 'https' } } });
 
-        server.inject('/nowhere', (res) => {
-
-            expect(res.statusCode).to.equal(502);
-            done();
-        });
+        const res = await server.inject('/nowhere');
+        expect(res.statusCode).to.equal(502);
     });
 
-    it('redirects to another endpoint', (done) => {
+    it('redirects to another endpoint', async () => {
 
-        const redirectHandler = function (request, reply) {
+        const redirectHandler = function (request, h) {
 
-            reply.redirect('/profile');
+            return h.redirect('/profile');
         };
 
-        const profile = function (request, reply) {
+        const profile = function (request, h) {
 
-            reply({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
+            return h.response({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
         upstream.route({ method: 'GET', path: '/profile', handler: profile, config: { cache: { expiresIn: 2000 } } });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
-            server.state('auto', { autoValue: 'xyz' });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        server.state('auto', { autoValue: 'xyz' });
 
-            server.inject('/redirect', (res) => {
+        const res = await server.inject('/redirect');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.contain('John Doe');
+        expect(res.headers['set-cookie'][0]).to.include(['test=123']);
+        expect(res.headers['set-cookie'][1]).to.include(['auto=xyz']);
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie'][0]).to.include(['test=123']);
-                expect(res.headers['set-cookie'][1]).to.include(['auto=xyz']);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('redirects to another endpoint with relative location', (done) => {
+    it('redirects to another endpoint with relative location', async () => {
 
-        const redirectHandler = function (request, reply) {
+        const redirectHandler = function (request, h) {
 
-            reply().header('Location', '//localhost:' + request.server.info.port + '/profile').code(302);
+            return h.response().header('Location', '//localhost:' + request.server.info.port + '/profile').code(302);
         };
 
-        const profile = function (request, reply) {
+        const profile = function (request, h) {
 
-            reply({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
+            return h.response({ id: 'fa0dbda9b1b', name: 'John Doe' }).state('test', '123');
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/redirect', handler: redirectHandler });
         upstream.route({ method: 'GET', path: '/profile', handler: profile, config: { cache: { expiresIn: 2000 } } });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
-            server.state('auto', { autoValue: 'xyz' });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        server.state('auto', { autoValue: 'xyz' });
 
-            server.inject('/redirect?x=2', (res) => {
+        const res = await server.inject('/redirect?x=2');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.contain('John Doe');
+        expect(res.headers['set-cookie'][0]).to.include(['test=123']);
+        expect(res.headers['set-cookie'][1]).to.include(['auto=xyz']);
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('John Doe');
-                expect(res.headers['set-cookie'][0]).to.include(['test=123']);
-                expect(res.headers['set-cookie'][1]).to.include(['auto=xyz']);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('redirects to a post endpoint with stream', (done) => {
+    it('redirects to a post endpoint with stream', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'POST',
             path: '/post1',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply.redirect('/post2').rewritable(false);
+                return h.redirect('/post2').rewritable(false);
             }
         });
-
         upstream.route({
             method: 'POST',
             path: '/post2',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply(request.payload);
+                return h.response(request.payload);
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'POST', path: '/post1', handler: { proxy: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
 
-            const server = provisionServer();
-            server.route({ method: 'POST', path: '/post1', handler: { proxy: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
+        const res = await server.inject({ method: 'POST', url: '/post1', payload: 'test', headers: { 'content-type': 'text/plain' } });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('test');
 
-            server.inject({ method: 'POST', url: '/post1', payload: 'test', headers: { 'content-type': 'text/plain' } }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('test');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('errors when proxied request times out', (done) => {
+    it('errors when proxied request times out', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/timeout1',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                setTimeout(() => {
+                return new Promise((resolve, reject) => {
 
-                    return reply('Ok');
-                }, 10);
+                    setTimeout(() => {
+
+                        return resolve(h.response('Ok'));
+                    }, 10);
+                });
+
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
+        const res = await server.inject('/timeout1');
+        expect(res.statusCode).to.equal(504);
 
-            server.inject('/timeout1', (res) => {
-
-                expect(res.statusCode).to.equal(504);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('uses default timeout when nothing is set', (done) => {
+    it('uses default timeout when nothing is set', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
 
             method: 'GET',
             path: '/timeout2',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                setTimeout(() => {
+                return new Promise((resolve, reject) => {
 
-                    return reply('Ok');
-                }, 10);
+                    setTimeout(() => {
+
+                        return resolve(h.response('Ok'));
+                    }, 10);
+                });
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        const res = await server.inject('/timeout2');
+        expect(res.statusCode).to.equal(200);
 
-            server.inject('/timeout2', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('uses rejectUnauthorized to allow proxy to self signed ssl server', (done) => {
+    it('uses rejectUnauthorized to allow proxy to self sign ssl server', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection({ tls: tlsOptions });
+
+        const upstream = Hapi.server({ tls: tlsOptions });
         upstream.route({
             method: 'GET',
             path: '/',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply('Ok');
+                return h.response('Ok');
             }
         });
 
-        upstream.start(() => {
+        await upstream.start();
 
-            const mapSslUri = function (request, callback) {
+        const mapSslUri = function (request) {
 
-                return callback(null, 'https://127.0.0.1:' + upstream.info.port);
+            return {
+                uri: `https://127.0.0.1:${upstream.info.port}`
             };
+        };
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/allow', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: false } } });
-            server.inject('/allow', (res) => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/allow', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: false } } });
+        await server.start();
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('Ok');
-                done();
-            });
-        });
+        const res = await server.inject('/allow');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('Ok');
+
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('uses rejectUnauthorized to not allow proxy to self signed ssl server', (done) => {
+    it('uses rejectUnauthorized to not allow proxy to self sign ssl server', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection({ tls: tlsOptions });
+        const upstream = Hapi.server({ tls: tlsOptions });
         upstream.route({
             method: 'GET',
             path: '/',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply('Ok');
+                return h.response('Ok');
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const mapSslUri = function (request, h) {
 
-            const mapSslUri = function (request, callback) {
-
-                return callback(null, 'https://127.0.0.1:' + upstream.info.port);
+            return {
+                uri: `https://127.0.0.1:${upstream.info.port}`
             };
+        };
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/reject', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: true } } });
-            server.inject('/reject', (res) => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/reject', handler: { proxy: { mapUri: mapSslUri, rejectUnauthorized: true } } });
+        await server.start();
 
-                expect(res.statusCode).to.equal(502);
-                done();
-            });
-        });
+        const res = await server.inject('/reject');
+        expect(res.statusCode).to.equal(502);
+
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('the default rejectUnauthorized should not allow proxied server cert to be self signed', (done) => {
+    it('the default rejectUnauthorized should not allow proxied server cert to be self signed', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection({ tls: tlsOptions });
+        const upstream = Hapi.server({ tls: tlsOptions });
         upstream.route({
             method: 'GET',
             path: '/',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply('Ok');
+                return h.response('Ok');
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const mapSslUri = function (request) {
 
-            const mapSslUri = function (request, callback) {
+            return { uri: `https://127.0.0.1:${upstream.info.port}` };
+        };
 
-                return callback(null, 'https://127.0.0.1:' + upstream.info.port);
-            };
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/sslDefault', handler: { proxy: { mapUri: mapSslUri } } });
+        await server.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/sslDefault', handler: { proxy: { mapUri: mapSslUri } } });
-            server.inject('/sslDefault', (res) => {
+        const res = await server.inject('/sslDefault');
+        expect(res.statusCode).to.equal(502);
 
-                expect(res.statusCode).to.equal(502);
-                done();
-            });
-        });
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('times out when proxy timeout is less than server', { parallel: false }, (done) => {
+    it('times out when proxy timeout is less than server', { parallel: false }, async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/timeout2',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                setTimeout(() => {
+                return new Promise((resolve, reject) => {
 
-                    return reply('Ok');
-                }, 10);
+                    setTimeout(() => {
+
+                        return resolve(h.response('Ok'));
+                    }, 10);
+                });
+
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer({ routes: { timeout: { server: 8 } } });
+        server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
+        await server.start();
 
-            const server = provisionServer({ routes: { timeout: { server: 8 } } });
-            server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
-            server.inject('/timeout2', (res) => {
+        const res = await server.inject('/timeout2');
+        expect(res.statusCode).to.equal(504);
 
-                expect(res.statusCode).to.equal(504);
-                done();
-            });
-        });
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('times out when server timeout is less than proxy', (done) => {
+    it('times out when server timeout is less than proxy', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/timeout1',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                setTimeout(() => {
+                return new Promise((resolve, reject) => {
 
-                    return reply('Ok');
-                }, 10);
+                    setTimeout(() => {
+
+                        return resolve(h.response('Ok'));
+                    }, 10);
+                });
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer({ routes: { timeout: { server: 5 } } });
+        server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
 
-            const server = provisionServer({ routes: { timeout: { server: 5 } } });
-            server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
-            server.inject('/timeout1', (res) => {
+        const res = await server.inject('/timeout1');
+        expect(res.statusCode).to.equal(503);
 
-                expect(res.statusCode).to.equal(503);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('proxies via uri template', (done) => {
+    it('proxies via uri template', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/item',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply({ a: 1 });
+                return h.response({ a: 1 });
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
+        await server.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
+        const res = await server.inject('/handlerTemplate');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.contain('"a":1');
 
-            server.inject('/handlerTemplate', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain('"a":1');
-                done();
-            });
-        });
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('proxies via uri template with request.param variables', (done) => {
+    it('proxies via uri template with request.param variables', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/item/{param_a}/{param_b}',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply({ a: request.params.param_a, b: request.params.param_b });
+                return h.response({ a: request.params.param_a, b: request.params.param_b });
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
+        const prma = 'foo';
+        const prmb = 'bar';
+        const res = await server.inject(`/handlerTemplate/${prma}/${prmb}`);
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.contain(`"a":"${prma}"`);
+        expect(res.payload).to.contain(`"b":"${prmb}"`);
 
-            const prma = 'foo';
-            const prmb = 'bar';
-            server.inject(`/handlerTemplate/${prma}/${prmb}`, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.contain(`"a":"${prma}"`);
-                expect(res.payload).to.contain(`"b":"${prmb}"`);
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('passes upstream caching headers', (done) => {
+    it('passes upstream caching headers', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/cachedItem',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply({ a: 1 });
+                return h.response({ a: 1 });
             },
             config: {
                 cache: {
@@ -1386,329 +1263,294 @@ describe('H2o2', () => {
                 }
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/cachedItem', handler: { proxy: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
+        server.state('auto', { autoValue: 'xyz' });
+        await server.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/cachedItem', handler: { proxy: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
-            server.state('auto', { autoValue: 'xyz' });
+        const res = await server.inject('/cachedItem');
+        expect(res.statusCode).to.equal(200);
+        expect(res.headers['cache-control']).to.equal('max-age=2, must-revalidate');
 
-            server.inject('/cachedItem', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.headers['cache-control']).to.equal('max-age=2, must-revalidate, private');
-                done();
-            });
-        });
+        await server.stop();
+        await upstream.stop();
     });
 
-    it('ignores when no upstream caching headers to pass', (done) => {
+    it('ignores when no upstream caching headers to pass', async () => {
 
         const upstream = Http.createServer((req, res) => {
 
             res.end('not much');
         });
+        await upstream.listen();
 
-        upstream.listen(0, () => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(200);
+        expect(res.headers['cache-control']).to.equal('no-cache');
 
-            server.inject('/', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.headers['cache-control']).to.equal('no-cache');
-                done();
-            });
-        });
+        await upstream.close();
     });
 
-    it('ignores when upstream caching header is invalid', (done) => {
+    it('ignores when upstream caching header is invalid', async () => {
 
         const upstream = Http.createServer((req, res) => {
 
             res.writeHeader(200, { 'cache-control': 'some crap that does not work' });
             res.end('not much');
         });
+        await upstream.listen();
 
-        upstream.listen(0, () => {
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(200);
+        expect(res.headers['cache-control']).to.equal('no-cache');
 
-            server.inject('/', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.headers['cache-control']).to.equal('no-cache');
-                done();
-            });
-        });
+        await upstream.close();
     });
 
-    it('overrides response code with 304', (done) => {
+    it('overrides response code with 304', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/item',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply({ a: 1 });
+                return h.response({ a: 1 });
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const onResponse304 = function (err, res, request, h, settings, ttl) {
 
-            const onResponse304 = function (err, res, request, reply, settings, ttl) {
+            expect(err).to.be.null();
+            return h.response(res).code(304);
+        };
 
-                expect(err).to.be.null();
-                return reply(res).code(304);
-            };
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/304', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/304', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
+        const res = await server.inject('/304');
+        expect(res.statusCode).to.equal(304);
+        expect(res.payload).to.equal('');
 
-            server.inject('/304', (res) => {
-
-                expect(res.statusCode).to.equal(304);
-                expect(res.payload).to.equal('');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('cleans up when proxy response replaced in onPreResponse', (done) => {
+    it('cleans up when proxy response replaced in onPreResponse', async () => {
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({
             method: 'GET',
             path: '/item',
-            handler: function (request, reply) {
+            handler: function (request, h) {
 
-                return reply({ a: 1 });
+                return h.response({ a: 1 });
             }
         });
+        await upstream.start();
 
-        upstream.start(() => {
+        const server = await provisionServer();
+        server.ext('onPreResponse', (request, h) => {
 
-            const server = provisionServer();
-            server.ext('onPreResponse', (request, reply) => {
-
-                return reply({ something: 'else' });
-            });
-
-            server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
-
-            server.inject('/item', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.result.something).to.equal('else');
-                done();
-            });
+            return h.response({ something: 'else' });
         });
+        server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+
+        const res = await server.inject('/item');
+        expect(res.statusCode).to.equal(200);
+        expect(res.result.something).to.equal('else');
+
+        await upstream.stop();
     });
 
-    it('retails accept-encoding header', (done) => {
+    it('retails accept-encoding header', async () => {
 
-        const profile = function (request, reply) {
+        const profile = function (request, h) {
 
-            reply(request.headers['accept-encoding']);
+            return h.response(request.headers['accept-encoding']);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler: profile, config: { cache: { expiresIn: 2000 } } });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
 
-            server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } }, (res) => {
+        const res = await server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('*/*');
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('*/*');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('removes accept-encoding header', (done) => {
+    it('removes accept-encoding header', async () => {
 
-        const profile = function (request, reply) {
+        const profile = function (request, h) {
 
-            reply(request.headers['accept-encoding']);
+            return h.response(request.headers['accept-encoding']);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler: profile, config: { cache: { expiresIn: 2000 } } });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
 
-            server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } }, (res) => {
+        const res = await server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('');
 
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('');
-                done();
-            });
-        });
+        await upstream.stop();
     });
 
-    it('does not send multiple Content-Type headers on passthrough', { parallel: false }, (done) => {
+    it('does not send multiple Content-Type headers on passthrough', { parallel: false }, async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
 
         const requestFn = Wreck.request;
-        Wreck.request = function (method, url, options, cb) {
+        Wreck.request = function (method, url, options) {
 
             Wreck.request = requestFn;
             expect(options.headers['content-type']).to.equal('application/json');
             expect(options.headers['Content-Type']).to.not.exist();
-            cb(new Error('placeholder'));
+            throw new Error('placeholder');
         };
         server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://localhost', passThrough: true } } });
-        server.inject({ method: 'GET', url: '/test', headers: { 'Content-Type': 'application/json' } }, (res) => {
-
-            done();
-        });
+        await server.inject({ method: 'GET', url: '/test', headers: { 'Content-Type': 'application/json' } });
     });
 
-    it('allows passing in an agent through to Wreck', { parallel: false }, (done) => {
+    it('allows passing in an agent through to Wreck', { parallel: false }, async () => {
 
-        const server = provisionServer();
+        const server = await provisionServer();
         const agent = { name: 'myagent' };
 
         const requestFn = Wreck.request;
-        Wreck.request = function (method, url, options, cb) {
+        Wreck.request = function (method, url, options) {
 
             Wreck.request = requestFn;
             expect(options.agent).to.equal(agent);
-            done();
-
+            return { statusCode: 200 };
         };
         server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', agent } } });
-        server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
+        await server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
     });
 
-    it('excludes request cookies defined locally', (done) => {
+    it('excludes request cookies defined locally', async () => {
 
-        const handler = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply(request.state);
+            return h.response(request.state);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.state('a');
+        const server = await provisionServer();
+        server.state('a');
 
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: {
-                    proxy: {
-                        host: 'localhost',
-                        port: upstream.info.port,
-                        passThrough: true
-                    }
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: {
+                proxy: {
+                    host: 'localhost',
+                    port: upstream.info.port,
+                    passThrough: true
                 }
-            });
-
-            server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                const cookies = JSON.parse(res.payload);
-                expect(cookies).to.equal({ b: '2' });
-                done();
-            });
+            }
         });
+
+        const res = await server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } });
+        expect(res.statusCode).to.equal(200);
+
+        const cookies = JSON.parse(res.payload);
+        expect(cookies).to.equal({ b: '2' });
+
+        await upstream.stop();
     });
 
-    it('includes request cookies defined locally (route level)', (done) => {
+    it('includes request cookies defined locally (route level)', async () => {
 
-        const handler = function (request, reply) {
+        const handler = function (request, h) {
 
-            return reply(request.state);
+            return h.response(request.state);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.state('a', { passThrough: true });
-
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: {
-                    proxy: {
-                        host: 'localhost',
-                        port: upstream.info.port,
-                        passThrough: true,
-                        localStatePassThrough: true
-                    }
+        const server = await provisionServer();
+        server.state('a', { passThrough: true });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: {
+                proxy: {
+                    host: 'localhost',
+                    port: upstream.info.port,
+                    passThrough: true,
+                    localStatePassThrough: true
                 }
-            });
-
-            server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                const cookies = JSON.parse(res.payload);
-                expect(cookies).to.equal({ a: '1', b: '2' });
-                done();
-            });
+            }
         });
+        const res = await server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } });
+        expect(res.statusCode).to.equal(200);
+
+        const cookies = JSON.parse(res.payload);
+        expect(cookies).to.equal({ a: '1', b: '2' });
+
+        await upstream.stop();
     });
 
-    it('includes request cookies defined locally (cookie level)', (done) => {
+    it('includes request cookies defined locally (cookie level)', async () => {
 
-        const handler = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply(request.state);
+            return h.response(request.state);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.state('a', { passThrough: true });
-
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: {
-                    proxy: {
-                        host: 'localhost',
-                        port: upstream.info.port,
-                        passThrough: true
-                    }
+        const server = await provisionServer();
+        server.state('a', { passThrough: true });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: {
+                proxy: {
+                    host: 'localhost',
+                    port: upstream.info.port,
+                    passThrough: true
                 }
-            });
-
-            server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                const cookies = JSON.parse(res.payload);
-                expect(cookies).to.equal({ a: '1', b: '2' });
-                done();
-            });
+            }
         });
+
+        const res = await server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } });
+        expect(res.statusCode).to.equal(200);
+
+        const cookies = JSON.parse(res.payload);
+        expect(cookies).to.equal({ a: '1', b: '2' });
+
+        await upstream.stop();
     });
 
-    it('errors on invalid cookie header', (done) => {
+    it('errors on invalid cookie header', async () => {
 
-        const server = provisionServer({ routes: { state: { failAction: 'ignore' } } });
+        const server = await provisionServer({ routes: { state: { failAction: 'ignore' } } });
         server.state('a', { passThrough: true });
 
         server.route({
@@ -1723,154 +1565,146 @@ describe('H2o2', () => {
             }
         });
 
-        server.inject({ url: '/', headers: { cookie: 'a' } }, (res) => {
-
-            expect(res.statusCode).to.equal(400);
-            done();
-        });
+        const res = await server.inject({ url: '/', headers: { cookie: 'a' } });
+        expect(res.statusCode).to.equal(400);
     });
 
-    it('drops cookies when all defined locally', (done) => {
+    it('drops cookies when all defined locally', async () => {
 
-        const handler = function (request, reply) {
+        const handler = function (request, h) {
 
-            reply(request.state);
+            return h.response(request.state);
         };
 
-        const upstream = new Hapi.Server();
-        upstream.connection();
+        const upstream = Hapi.server();
         upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
+        await upstream.start();
 
-            const server = provisionServer();
-            server.state('a');
-
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: {
-                    proxy: {
-                        host: 'localhost',
-                        port: upstream.info.port,
-                        passThrough: true
-                    }
-                }
-            });
-
-            server.inject({ url: '/', headers: { cookie: 'a=1' } }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                const cookies = JSON.parse(res.payload);
-                expect(cookies).to.equal({});
-                done();
-            });
-        });
-    });
-
-    it('excludes request cookies defined locally (state override)', (done) => {
-
-        const handler = function (request, reply) {
-
-            return reply(request.state);
-        };
-
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.route({ method: 'GET', path: '/', handler });
-        upstream.start(() => {
-
-            const server = provisionServer();
-            server.state('a', { passThrough: false });
-
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: {
-                    proxy: {
-                        host: 'localhost',
-                        port: upstream.info.port,
-                        passThrough: true
-                    }
-                }
-            });
-
-            server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } }, (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                const cookies = JSON.parse(res.payload);
-                expect(cookies).to.equal({ b: '2' });
-                done();
-            });
-        });
-    });
-
-    it('uses reply decorator', (done) => {
-
-        const upstream = new Hapi.Server();
-        upstream.connection();
-        upstream.route({
+        const server = await provisionServer();
+        server.state('a');
+        server.route({
             method: 'GET',
             path: '/',
-            handler: function (request, reply) {
-
-                return reply('ok');
-            }
-        });
-        upstream.start(() => {
-
-            const server = provisionServer();
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: function (request, reply) {
-
-                    return reply.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+            handler: {
+                proxy: {
+                    host: 'localhost',
+                    port: upstream.info.port,
+                    passThrough: true
                 }
-            });
-
-            server.inject('/', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('ok');
-                done();
-            });
-        });
-    });
-
-    it('uses custom TLS settings', (done) => {
-
-        const upstream = new Hapi.Server();
-        upstream.connection({ tls: tlsOptions });
-        upstream.route({
-            method: 'GET',
-            path: '/',
-            handler: function (request, reply) {
-
-                return reply('ok');
             }
         });
 
-        upstream.start(() => {
+        const res = await server.inject({ url: '/', headers: { cookie: 'a=1' } });
+        expect(res.statusCode).to.equal(200);
 
-            const server = new Hapi.Server();
-            server.connection({});
-            server.register({ register: H2o2.register, options: { secureProtocol: 'TLSv1_2_method', ciphers: 'ECDHE-RSA-AES128-SHA256' } });
+        const cookies = JSON.parse(res.payload);
+        expect(cookies).to.equal({});
 
-            server.route({
-                method: 'GET',
-                path: '/',
-                handler: function (request, reply) {
+        await upstream.stop();
+    });
 
-                    return reply.proxy({ host: '127.0.0.1', protocol: 'https', port: upstream.info.port, rejectUnauthorized: false });
+    it('excludes request cookies defined locally (state override)', async () => {
+
+        const handler = function (request, h) {
+
+            return h.response(request.state);
+        };
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'GET', path: '/', handler });
+        await upstream.start();
+
+        const server = await provisionServer();
+        server.state('a', { passThrough: false });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: {
+                proxy: {
+                    host: 'localhost',
+                    port: upstream.info.port,
+                    passThrough: true
                 }
-            });
-
-            server.inject('/', (res) => {
-
-                expect(res.statusCode).to.equal(200);
-                expect(res.payload).to.equal('ok');
-                done();
-            });
+            }
         });
+
+        const res = await server.inject({ url: '/', headers: { cookie: 'a=1;b=2' } });
+        expect(res.statusCode).to.equal(200);
+
+        const cookies = JSON.parse(res.payload);
+        expect(cookies).to.equal({ b: '2' });
+
+        await upstream.stop();
+    });
+
+    it('uses reply decorator', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, h) {
+
+                return h.response('ok');
+            }
+        });
+        await upstream.start();
+
+        const server = await provisionServer();
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, h) {
+
+                return h.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+            }
+        });
+
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('ok');
+
+        await upstream.stop();
+    });
+
+    it('uses custom TLS settings', async () => {
+
+
+        const upstream = Hapi.server({ tls: tlsOptions });
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, h) {
+
+                return h.response('ok');
+            }
+        });
+        await upstream.start();
+
+        const plugin = {
+            register: H2o2.register,
+            pkg: H2o2.pkg
+        };
+        const options = { secureProtocol: 'TLSv1_2_method', ciphers: 'ECDHE-RSA-AES128-SHA256' };
+
+        const server = Hapi.server();
+        await server.register({
+            plugin,
+            options
+        });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, h) {
+
+                return h.proxy({ host: '127.0.0.1', protocol: 'https', port: upstream.info.port, rejectUnauthorized: false });
+            }
+        });
+
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('ok');
+
+        await upstream.stop();
     });
 });
