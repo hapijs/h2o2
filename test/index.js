@@ -93,7 +93,7 @@ describe('H2o2', () => {
         };
 
         const upstream = Hapi.server();
-        upstream.route({ method: 'GET', path: '/profile', handler: profileHandler, config: { cache: { expiresIn: 2000, privacy: 'private' } } }); //TODO: Privacy Default change
+        upstream.route({ method: 'GET', path: '/profile', handler: profileHandler, config: { cache: { expiresIn: 2000, privacy: 'private' } } });
         await upstream.start();
 
         const server = await provisionServer();
