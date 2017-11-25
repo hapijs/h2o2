@@ -13,28 +13,30 @@ Lead Maintainer - [Oscar A. Funes Martinez](https://github.com/osukaa)
 **h2o2** is a hapi plugin that adds proxying functionality.
 
 ## Manual loading
+H2o2 version 7 requires Hapi 17. For use with Hapi v16.x.x, please use H2o2 @v6.x.x
 
 Starting on version 9, `hapi` does not load the `h2o2` automatically. To add `h2o2` to your server, you should register it normally.
 
 ```javascript
 const Hapi = require('hapi');
-const server = new Hapi.Server();
+const server = Hapi.server();
 
-server.register({
-    register: require('h2o2')
-}, function (err) {
+const startServer = async function() {
+  try {
+    await server.register({ plugin: require('h2o2') });
+    await server.start();
+    
+    console.log(`Server started at:  ${server.info.uri}`); 
+  }
+  catch(e) {
+    console.log('Failed to load h2o2');
+  }
+}
 
-    if (err) {
-        console.log('Failed to load h2o2');
-    }
-
-    server.start(function (err) {
-
-        console.log('Server started at: ' + server.info.uri);
-    });
-});
+startServer();
 ```
 _**NOTE**: h2o2 is included with and loaded by default in Hapi < 9.0._
+
 
 ## Options
 
@@ -55,10 +57,8 @@ The proxy handler object has the following properties:
 * `xforward` - if set to `true`, sets the 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto', 'X-Forwarded-Host' headers when making a request to the proxied upstream endpoint. Defaults to `false`.
 * `redirects` - the maximum number of HTTP redirections allowed to be followed automatically by the handler. Set to `false` or `0` to disable all redirections (the response will contain the redirection received from the upstream service). If redirections are enabled, no redirections (301, 302, 307, 308) will be passed along to the client, and reaching the maximum allowed redirections will return an error response. Defaults to `false`.
 * `timeout` - number of milliseconds before aborting the upstream request. Defaults to `180000` (3 minutes).
-* `mapUri` - a function used to map the request URI to the proxied URI. Cannot be used together with `host`, `port`, `protocol`, or `uri`. The function signature is `function (request, callback)` where:
-    * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
-    * `callback` - is `function (err, uri, headers)` where:
-        * `err` - internal error condition.
+* `mapUri` - a function used to map the request URI to the proxied URI. Cannot be used together with `host`, `port`, `protocol`, or `uri`. The function signature is `function (request)` where:
+    * `request` - is the incoming [request object](http://hapijs.com/api#request-object). The response from this function should be an       object with the following properties:
         * `uri` - the absolute proxy URI.
         * `headers` - optional object where each key is an HTTP request header and the value is the header content.
 * `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, reply, settings, ttl)` where:
@@ -80,7 +80,7 @@ The possible values depend on your installation of OpenSSL. Read the official Op
 
 As one of the handlers for hapi, it is used through the route configuration object.
 
-### `reply.proxy(options)`
+### `h.proxy(options)`
 
 Proxies the request to an upstream endpoint where:
 - `options` - an object including the same keys and restrictions defined by the
@@ -91,9 +91,9 @@ No return value.
 The [response flow control rules](http://hapijs.com/api#flow-control) **do not** apply.
 
 ```js
-const handler = function (request, reply) {
+const handler = function (request, h) {
 
-    return reply.proxy({ host: 'example.com', port: 80, protocol: 'http' });
+    return h.proxy({ host: 'example.com', port: 80, protocol: 'http' });
 };
 ```
 
@@ -178,10 +178,12 @@ server.route({
     path: '/',
     handler: {
         proxy: {
-            mapUri: function (request, callback) {
+            mapUri: function (request) {
 
                 console.log('doing some aditional stuff before redirecting');
-                callback(null, 'https://some.upstream.service.com/');
+                return {
+                    uri: 'https://some.upstream.service.com/'
+                };
             },
             onResponse: function (err, res, request, reply, settings, ttl) {
 
