@@ -15,13 +15,13 @@
     "node": ">=8.x.x"
   },
   "dependencies": {
-    "boom": "5.x.x",
-    "hoek": "4.x.x",
-    "joi": "10.x.x",
+    "boom": "7.x.x",
+    "hoek": "5.x.x",
+    "joi": "13.x.x",
     "wreck": "14.x.x"
   },
   "devDependencies": {
-    "code": "4.x.x",
+    "code": "5.x.x",
     "hapi": "17.x.x",
     "inert": "5.x.x",
     "lab": "15.x.x"

@@ -30,8 +30,6 @@ const startServer = async function() {
   }
   catch(e) {
     console.log('Failed to load h2o2');
-    
-    process.exit(1);
   }
 }
 

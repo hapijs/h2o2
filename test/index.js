@@ -43,7 +43,6 @@ describe('H2o2', () => {
         }
         catch (err) {
             console.log(err);
-            process.exit(1);
         }
 
         return server;
