@@ -17,6 +17,7 @@ H2o2 version 7 requires Hapi 17. For use with Hapi v16.x.x, please use H2o2 @v6.
 
 Starting on version 9, `hapi` does not load the `h2o2` automatically. To add `h2o2` to your server, you should register it normally.
 
+
 ```javascript
 const Hapi = require('hapi');
 const server = Hapi.server();
