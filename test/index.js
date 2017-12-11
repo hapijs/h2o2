@@ -668,6 +668,7 @@ describe('H2o2', () => {
 
         const failureResponse = function (err, res, request, h, settings, ttl) {
 
+            expect(h.response).to.exist();
             throw err;
         };
 
