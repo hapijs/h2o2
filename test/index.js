@@ -492,12 +492,20 @@ describe('H2o2', () => {
     it('calls onRequest when it\'s created', async () => {
 
         const upstream = Hapi.Server();
+
+        let upstreamRequested = false;
+        upstream.events.on('request', () => {
+
+            upstreamRequested = true;
+        });
+
         await upstream.start();
 
         let called = false;
         const onRequestWithSocket = function (req) {
 
             called = true;
+            expect(upstreamRequested).to.be.false();
             expect(req).to.be.an.instanceof(Http.ClientRequest);
         };
 
