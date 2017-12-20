@@ -182,7 +182,7 @@ server.route({
         proxy: {
             mapUri: function (request) {
 
-                console.log('doing some aditional stuff before redirecting');
+                console.log('doing some additional stuff before redirecting');
                 return {
                     uri: 'https://some.upstream.service.com/'
                 };
