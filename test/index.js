@@ -748,7 +748,7 @@ describe('H2o2', () => {
         await upstream.stop();
     });
 
-    it('adds x-forwarded-* headers to existing', async () => {
+    it('adds x-forwarded-for headers to existing and preserves original port, proto and host', async () => {
 
         const handler = function (request, h) {
 
@@ -784,16 +784,15 @@ describe('H2o2', () => {
         const result = JSON.parse(response.payload);
 
         const expectedClientAddress = '127.0.0.1';
-        const expectedClientAddressAndPort = expectedClientAddress + ':' + server.info.port;
+
         if (Net.isIPv6(server.listener.address().address)) {
             expectedClientAddress = '::ffff:127.0.0.1';
-            expectedClientAddressAndPort = '[' + expectedClientAddress + ']:' + server.info.port;
         }
 
         expect(result['x-forwarded-for']).to.equal('testhost,' + expectedClientAddress);
-        expect(result['x-forwarded-port']).to.match(/1337\,\d+/);
-        expect(result['x-forwarded-proto']).to.equal('https,http');
-        expect(result['x-forwarded-host']).to.equal('example.com,' + expectedClientAddressAndPort);
+        expect(result['x-forwarded-port']).to.equal('1337');
+        expect(result['x-forwarded-proto']).to.equal('https');
+        expect(result['x-forwarded-host']).to.equal('example.com');
 
         await upstream.stop();
         await server.stop();
