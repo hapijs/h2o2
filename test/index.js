@@ -302,7 +302,7 @@ describe('H2o2', () => {
         const server =  await provisionServer();
         server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
-        const zipped = await Zlib.gzipSync(new Buffer('123456789012345678901234567890123456789012345678901234567890'));
+        const zipped = await Zlib.gzipSync(Buffer.from('123456789012345678901234567890123456789012345678901234567890'));
         const res = await server.inject({ url: '/gzip', headers: { 'accept-encoding': 'gzip' } });
 
         expect(res.statusCode).to.equal(200);
