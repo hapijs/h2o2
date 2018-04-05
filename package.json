@@ -1,8 +1,8 @@
 {
-  "name": "h2o2",
-  "description": "Proxy handler plugin for hapi.js",
+  "name": "qh2o2",
+  "description": "Proxy handler plugin fork for hapi.js",
   "version": "6.1.0",
-  "repository": "git://github.com/hapijs/h2o2",
+  "repository": "git://github.com/mkozjak/h2o2#6.x.x",
   "main": "lib/index.js",
   "keywords": [
     "HTTP",

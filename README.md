@@ -61,8 +61,10 @@ The proxy handler object has the following properties:
         * `err` - internal error condition.
         * `uri` - the absolute proxy URI.
         * `headers` - optional object where each key is an HTTP request header and the value is the header content.
-* `onRequest` - a custom function which is passed the upstream request.  Function signature is `function (req)` where:
+* `onRequest` - a custom function which is passed the upstream request.  Function signature is `function (req, options, callback)` where:
     * `req` - the [wreck] (https://github.com/hapijs/wreck) request to the upstream server.
+    * `options` - an object passed from h2o2. Includes payload, redirects, headers etc.
+    * `callback` - a callback function which _must_ be called at the end of `onRequest` custom function.
 * `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, reply, settings, ttl)` where:
     * `err` - internal or upstream error returned from attempting to contact the upstream proxy.
     * `res` - the node response object received from the upstream service. `res` is a readable stream (use the [wreck](https://github.com/hapijs/wreck) module `read` method to easily convert it to a Buffer or string).
