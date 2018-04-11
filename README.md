@@ -25,8 +25,8 @@ const startServer = async function() {
   try {
     await server.register({ plugin: require('h2o2') });
     await server.start();
-    
-    console.log(`Server started at:  ${server.info.uri}`); 
+
+    console.log(`Server started at:  ${server.info.uri}`);
   }
   catch(e) {
     console.log('Failed to load h2o2');
@@ -77,6 +77,7 @@ The proxy handler object has the following properties:
 to force SSL version 3. The possible values depend on your installation of OpenSSL. Read the official OpenSSL docs for possible [SSL_METHODS](http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS).
 * `ciphers` - [TLS](https://nodejs.org/api/tls.html#tls_modifying_the_default_tls_cipher_suite) list of TLS ciphers to override node's default.  
 The possible values depend on your installation of OpenSSL. Read the official OpenSSL docs for possible [TLS_CIPHERS](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT).
+* `downstreamResponseTime` - logs the time spent processing the downstream request using [process.hrtime](https://nodejs.org/api/process.html#process_process_hrtime_time). Defaults to `false`.
 
 ## Usage
 
@@ -133,14 +134,14 @@ server.route({
 });
 ```
 ### Custom `uri` template values
-    
+
 When using the `uri` option, there are optional **default** template values that can be injected from the incoming `request`:
 
 * `{protocol}`
 * `{host}`
 * `{port}`
 * `{path}`
-    
+
 ```javascript
 server.route({
     method: 'GET',
@@ -169,7 +170,7 @@ server.route({
 ```
 **Note** The default variables of `{protocol}`, `{host}`, `{port}`, `{path}` take precedence - it's best to treat those as reserved when naming your own `request.params`.
 
-    
+
 ### Using the `mapUri` and `onResponse` options
 
 Setting both options with custom functions will allow you to map the original request to an upstream service and to processing the response from the upstream service, before sending it to the client. Cannot be used together with `host`, `port`, `protocol`, or `uri`.

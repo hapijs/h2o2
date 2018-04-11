@@ -1713,7 +1713,6 @@ describe('H2o2', () => {
 
     it('uses custom TLS settings', async () => {
 
-
         const upstream = Hapi.server({ tls: tlsOptions });
         upstream.route({
             method: 'GET',
@@ -1750,5 +1749,90 @@ describe('H2o2', () => {
         expect(res.payload).to.equal('ok');
 
         await upstream.stop();
+    });
+
+    it('adds downstreamResponseTime to the response when downstreamResponseTime is set to true on success', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, h) {
+
+                return h.response('ok');
+            }
+        });
+        await upstream.start();
+
+        const plugin = {
+            register: H2o2.register,
+            pkg: H2o2.pkg
+        };
+        const options = { downstreamResponseTime: true };
+
+        const server = Hapi.server();
+        await server.register({
+            plugin,
+            options
+        });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: function (request, h) {
+
+                return h.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+            }
+        });
+
+        server.events.on('request', (request, event, tags) => {
+
+            expect(Object.keys(event.data)).to.equal(['downstreamResponseTime']);
+            expect(tags).to.equal({ h2o2: true, success: true });
+        });
+
+        const res = await server.inject('/');
+        expect(res.statusCode).to.equal(200);
+
+        await upstream.stop();
+    });
+
+    it('adds downstreamResponseTime to the response when downstreamResponseTime is set to true on error', async () => {
+
+        const failureResponse = function (err, res, request, h, settings, ttl) {
+
+            expect(h.response).to.exist();
+            throw err;
+        };
+
+        const dummy = Hapi.server();
+        await dummy.start();
+        const dummyPort = dummy.info.port;
+        await dummy.stop(Hoek.ignore);
+
+        const plugin = {
+            register: H2o2.register,
+            pkg: H2o2.pkg
+        };
+        const options = { downstreamResponseTime: true };
+
+        const server = Hapi.server();
+        await server.register({
+            plugin,
+            options
+        });
+        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+
+        let firstEvent = true;
+        server.events.on('request', (request, event, tags) => {
+
+            if (firstEvent) {
+                firstEvent = false;
+                expect(Object.keys(event.data)).to.equal(['downstreamResponseTime']);
+                expect(tags).to.equal({ h2o2: true, error: true });
+            }
+        });
+
+        const res = await server.inject('/failureResponse');
+        expect(res.statusCode).to.equal(502);
     });
 });
