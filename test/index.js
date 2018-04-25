@@ -218,7 +218,9 @@ describe('H2o2', () => {
 
             return h.response({ status: 'success' })
                 .header('Custom1', 'custom header value 1')
-                .header('X-Custom2', 'custom header value 2');
+                .header('X-Custom2', 'custom header value 2')
+                .header('x-hostFound', request.headers.host)
+                .header('x-content-length-found', request.headers['content-length']);
         };
 
         const upstream = Hapi.server();
@@ -228,11 +230,18 @@ describe('H2o2', () => {
         const server = await provisionServer({ routes: { cors: true } });
         server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
-        const res = await server.inject('/headers');
+        const res = await server.inject({
+            url: '/headers',
+            headers: {
+                host: 'www.h2o2.com', 'content-length': 10000
+            }
+        });
         expect(res.statusCode).to.equal(200);
         expect(res.payload).to.equal('{\"status\":\"success\"}');
         expect(res.headers.custom1).to.equal('custom header value 1');
         expect(res.headers['x-custom2']).to.equal('custom header value 2');
+        expect(res.headers['x-hostFound']).to.equal(undefined);
+        expect(res.headers['x-content-length-found']).to.equal(undefined);
 
         await upstream.stop();
     });
@@ -299,7 +308,7 @@ describe('H2o2', () => {
         upstream.route({ method: 'GET', path: '/gzip', handler: gzipHandler });
         await upstream.start();
 
-        const server =  await provisionServer();
+        const server = await provisionServer();
         server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
 
         const zipped = await Zlib.gzipSync(Buffer.from('123456789012345678901234567890123456789012345678901234567890'));
@@ -564,7 +573,7 @@ describe('H2o2', () => {
 
     it('binds onResponse to route bind config in plugin', async () => {
 
-        const upstream =  Hapi.server();
+        const upstream = Hapi.server();
         await upstream.start();
 
         const plugin = {
