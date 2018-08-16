@@ -63,11 +63,11 @@ The proxy handler object has the following properties:
         * `headers` - optional object where each key is an HTTP request header and the value is the header content.
 * `onRequest` - a custom function which is passed the upstream request.  Function signature is `function (req)` where:
     * `req` - the [wreck] (https://github.com/hapijs/wreck) request to the upstream server.
-* `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, reply, settings, ttl)` where:
+* `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, h, settings, ttl)` where:
     * `err` - internal or upstream error returned from attempting to contact the upstream proxy.
     * `res` - the node response object received from the upstream service. `res` is a readable stream (use the [wreck](https://github.com/hapijs/wreck) module `read` method to easily convert it to a Buffer or string).
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
-    * `reply` - the [reply interface](http://hapijs.com/api#reply-interface) function.
+    * `h` - the [response toolkit](https://hapijs.com/api#response-toolkit).
     * `settings` - the proxy handler configuration.
     * `ttl` - the upstream TTL in milliseconds if `proxy.ttl` it set to `'upstream'` and the upstream response included a valid 'Cache-Control' header with 'max-age'.
 * `ttl` - if set to `'upstream'`, applies the upstream response caching policy to the response using the `response.ttl()` method (or passed as an argument to the `onResponse` method if provided).
@@ -188,13 +188,15 @@ server.route({
                     uri: 'https://some.upstream.service.com/'
                 };
             },
-            onResponse: function (err, res, request, reply, settings, ttl) {
+            onResponse: function (err, res, request, h, settings, ttl) {
 
                 console.log('receiving the response from the upstream.');
                 Wreck.read(res, { json: true }, function (err, payload) {
 
                     console.log('some payload manipulation if you want to.')
-                    reply(payload).headers = res.headers;
+                    const response = h.response(payload);
+                    response.headers = res.headers;
+                    return response;
                 });
             }
         }
