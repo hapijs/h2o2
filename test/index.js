@@ -1553,8 +1553,7 @@ describe('H2o2', () => {
                 proxy: {
                     host: 'localhost',
                     port: upstream.info.port,
-                    passThrough: true,
-                    localStatePassThrough: true
+                    passThrough: true
                 }
             }
         });
