@@ -40,7 +40,7 @@ _**NOTE**: h2o2 is included with and loaded by default in Hapi < 9.0._
 
 ## Options
 
-The plugin can be registered with an optional object specifying defaults to be applied to the proxy handler object.  
+The plugin can be registered with an optional object specifying defaults to be applied to the proxy handler object.
 
 The proxy handler object has the following properties:
 
@@ -50,6 +50,7 @@ The proxy handler object has the following properties:
     * 'http'
     * 'https'
 * `uri` - absolute URI used instead of host, port, protocol, path, and query. Cannot be used with `host`, `port`, `protocol`, or `mapUri`.
+* `httpClient` - an http client that abides by the Wreck interface. Defaults to [`wreck`](https://github.com/hapijs/wreck).
 * `passThrough` - if set to `true`, it forwards the headers from the client to the upstream service, headers sent from the upstream service will also be forwarded to the client. Defaults to `false`.
 * `localStatePassThrough` - if set to`false`, any locally defined state is removed from incoming requests before being sent to the upstream service. This value can be overridden on a per state basis via the `server.state()` `passThrough` option. Defaults to `false`
 * `acceptEncoding` - if set to `false`, does not pass-through the 'Accept-Encoding' HTTP header which is useful for the `onResponse` post-processing to avoid receiving an encoded response. Can only be used together with `passThrough`. Defaults to `true` (passing header).
@@ -75,7 +76,7 @@ The proxy handler object has the following properties:
 * `maxSockets` - sets the maximum number of sockets available per outgoing proxy host connection. `false` means use the **wreck** module default value (`Infinity`). Does not affect non-proxy outgoing client connections. Defaults to `Infinity`.
 * `secureProtocol` - [TLS](http://nodejs.org/api/tls.html) flag indicating the SSL method to use, e.g. `SSLv3_method`
 to force SSL version 3. The possible values depend on your installation of OpenSSL. Read the official OpenSSL docs for possible [SSL_METHODS](https://www.openssl.org/docs/man1.0.2/ssl/ssl.html).
-* `ciphers` - [TLS](https://nodejs.org/api/tls.html#tls_modifying_the_default_tls_cipher_suite) list of TLS ciphers to override node's default.  
+* `ciphers` - [TLS](https://nodejs.org/api/tls.html#tls_modifying_the_default_tls_cipher_suite) list of TLS ciphers to override node's default.
 The possible values depend on your installation of OpenSSL. Read the official OpenSSL docs for possible [TLS_CIPHERS](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT).
 * `downstreamResponseTime` - logs the time spent processing the downstream request using [process.hrtime](https://nodejs.org/api/process.html#process_process_hrtime_time). Defaults to `false`.
 
@@ -203,4 +204,28 @@ server.route({
     }
 });
 
+```
+
+
+### Using a custom http client
+
+By default, `h2o2` uses Wreck to perform requests. A custom http client can be provided by passing a client to `httpClient`, as long as it abides by the [`wreck`](https://github.com/hapijs/wreck) interface. The two functions that `h2o2` utilizes are `request()` and `parseCacheControl()`.
+
+```javascript
+server.route({
+    method: 'GET',
+    path: '/',
+    handler: {
+        proxy: {
+            httpClient: {
+                request(method, uri, options) {
+                    return axios({
+                        method,
+                        url: 'https://some.upstream.service.com/'
+                    })
+                }
+            }
+        }
+    }
+});
 ```
