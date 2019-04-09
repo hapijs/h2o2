@@ -50,17 +50,17 @@ describe('H2o2', () => {
     it('overrides maxSockets', { parallel: false }, async () => {
 
         let maxSockets;
-        const orig = Wreck.request;
-        Wreck.request = function (method, uri, options, callback) {
+        const httpClient = {
+            request(method, uri, options, callback) {
 
-            Wreck.request = orig;
-            maxSockets = options.agent.maxSockets;
+                maxSockets = options.agent.maxSockets;
 
-            return { statusCode: 200 };
+                return { statusCode: 200 };
+            }
         };
 
         const server = await provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: 213 } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', httpClient, maxSockets: 213 } } });
         await server.inject('/');
         expect(maxSockets).to.equal(213);
     });
@@ -68,17 +68,17 @@ describe('H2o2', () => {
     it('uses node default with maxSockets set to false', { parallel: false }, async () => {
 
         let agent;
-        const orig = Wreck.request;
-        Wreck.request = function (method, uri, options) {
+        const httpClient = {
+            request(method, uri, options) {
 
-            Wreck.request = orig;
-            agent = options.agent;
+                agent = options.agent;
 
-            return { statusCode: 200 };
+                return { statusCode: 200 };
+            }
         };
 
         const server = await provisionServer();
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', maxSockets: false } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', httpClient, maxSockets: false } } });
         await server.inject('/');
         expect(agent).to.equal(undefined);
     });
@@ -1470,15 +1470,15 @@ describe('H2o2', () => {
 
         const server = await provisionServer();
 
-        const requestFn = Wreck.request;
-        Wreck.request = function (method, url, options) {
+        const httpClient = {
+            request(method, uri, options, callback) {
 
-            Wreck.request = requestFn;
-            expect(options.headers['content-type']).to.equal('application/json');
-            expect(options.headers['Content-Type']).to.not.exist();
-            throw new Error('placeholder');
+                expect(options.headers['content-type']).to.equal('application/json');
+                expect(options.headers['Content-Type']).to.not.exist();
+                throw new Error('placeholder');
+            }
         };
-        server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://localhost', passThrough: true } } });
+        server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://localhost', httpClient, passThrough: true } } });
         await server.inject({ method: 'GET', url: '/test', headers: { 'Content-Type': 'application/json' } });
     });
 
@@ -1487,14 +1487,14 @@ describe('H2o2', () => {
         const server = await provisionServer();
         const agent = { name: 'myagent' };
 
-        const requestFn = Wreck.request;
-        Wreck.request = function (method, url, options) {
+        const httpClient = {
+            request(method, uri, options, callback) {
 
-            Wreck.request = requestFn;
-            expect(options.agent).to.equal(agent);
-            return { statusCode: 200 };
+                expect(options.agent).to.equal(agent);
+                return { statusCode: 200 };
+            }
         };
-        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', agent } } });
+        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', httpClient, agent } } });
         await server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
     });
 
@@ -1843,5 +1843,24 @@ describe('H2o2', () => {
 
         const res = await server.inject('/failureResponse');
         expect(res.statusCode).to.equal(502);
+    });
+
+    it('uses a custom http-client', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'GET', path: '/', handler: () => 'ok' });
+        await upstream.start();
+
+        const httpClient = {
+            request: Wreck.request.bind(Wreck),
+            parseCacheControl: Wreck.parseCacheControl.bind(Wreck)
+        };
+
+        const server = await provisionServer();
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, httpClient } } });
+
+        const res = await server.inject('/');
+
+        expect(res.payload).to.equal('ok');
     });
 });
