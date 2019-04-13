@@ -1,29 +1,27 @@
+<a href="http://hapijs.com"><img src="https://github.com/hapijs/assets/blob/master/images/family.svg" width="180px" align="right" /></a>
+
 # h2o2
 
 Proxy handler plugin for hapi.js.
 
-[![NPM](https://nodei.co/npm/h2o2.png?downloads=true&stars=true)](https://nodei.co/npm/h2o2/)
-
 [![Build Status](https://secure.travis-ci.org/hapijs/h2o2.png)](http://travis-ci.org/hapijs/h2o2)
-
-Lead Maintainer - [Sanjay Pandit](https://github.com/spanditcaa)
 
 ## Introduction
 
-**h2o2** is a hapi plugin that adds proxying functionality.
+**h2o2** adds proxying functionality to a hapi server.
 
 ## Manual loading
-H2o2 version 7 requires Hapi 17. For use with Hapi v16.x.x, please use H2o2 @v6.x.x
-
-Starting on version 9, `hapi` does not load the `h2o2` automatically. To add `h2o2` to your server, you should register it normally.
 
 ```javascript
-const Hapi = require('hapi');
-const server = Hapi.server();
+const Hapi = require('@hapi/hapi');
+const H2o2 = require('@hapi/h2o2');
 
-const startServer = async function() {
+
+const start = async function() {
+
+  const server = Hapi.server();
   try {
-    await server.register({ plugin: require('h2o2') });
+    await server.register(H2o2);
     await server.start();
 
     console.log(`Server started at:  ${server.info.uri}`);
@@ -33,10 +31,8 @@ const startServer = async function() {
   }
 }
 
-startServer();
+start();
 ```
-_**NOTE**: h2o2 is included with and loaded by default in Hapi < 9.0._
-
 
 ## Options
 
