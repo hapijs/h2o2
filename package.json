@@ -1,7 +1,7 @@
 {
   "name": "@hapi/h2o2",
   "description": "Proxy handler plugin for hapi.js",
-  "version": "8.3.0",
+  "version": "8.3.1",
   "repository": "git://github.com/hapijs/h2o2",
   "main": "lib/index.js",
   "keywords": [
