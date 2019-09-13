@@ -159,7 +159,7 @@ describe('h2o2', () => {
                 path: '/',
                 config: {
                     handler: {
-                        proxy: { some: 'key' }
+                        proxy: {}
                     }
                 }
             });
