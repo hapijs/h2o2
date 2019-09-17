@@ -1,6 +1,6 @@
 <a href="http://hapijs.com"><img src="https://raw.githubusercontent.com/hapijs/assets/master/images/family.png" width="180px" align="right" /></a>
 
-# h2o2
+# @hapi/h2o2
 
 Proxy handler plugin for hapi.js.
 
