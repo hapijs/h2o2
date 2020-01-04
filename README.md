@@ -12,5 +12,6 @@
 
 - [Documentation and API](https://hapi.dev/family/h2o2/)
 - [Version status](https://hapi.dev/resources/status/#h2o2) (builds, dependencies, node versions, licenses, eol)
+- [Changelog](https://hapi.dev/family/h2o2/changelog/)
 - [Project policies](https://hapi.dev/policies/)
 - [Free and commercial support options](https://hapi.dev/support/)
