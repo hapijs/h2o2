@@ -1561,7 +1561,7 @@ describe('h2o2', () => {
         server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
 
         const res = await server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } });
-        expect(res.statusCode).to.equal(200);
+        expect(res.statusCode).to.be.within(200, 204);
         expect(res.payload).to.equal('');
 
         await upstream.stop();
