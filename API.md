@@ -178,16 +178,15 @@ server.route({
                     uri: 'https://some.upstream.service.com/'
                 };
             },
-            onResponse: function (err, res, request, h, settings, ttl) {
+            onResponse: async function (err, res, request, h, settings, ttl) {
 
                 console.log('receiving the response from the upstream.');
-                Wreck.read(res, { json: true }, function (err, payload) {
+                const payload = await Wreck.read(res, { json: true })
 
-                    console.log('some payload manipulation if you want to.')
-                    const response = h.response(payload);
-                    response.headers = res.headers;
-                    return response;
-                });
+                console.log('some payload manipulation if you want to.')
+                const response = h.response(payload);
+                response.headers = res.headers;
+                return response;
             }
         }
     }
