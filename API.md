@@ -181,9 +181,9 @@ server.route({
             onResponse: async function (err, res, request, h, settings, ttl) {
 
                 console.log('receiving the response from the upstream.');
-                const payload = await Wreck.read(res, { json: true })
+                const payload = await Wreck.read(res, { json: true });
 
-                console.log('some payload manipulation if you want to.')
+                console.log('some payload manipulation if you want to.');
                 const response = h.response(payload);
                 response.headers = res.headers;
                 return response;
