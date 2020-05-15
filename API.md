@@ -55,7 +55,7 @@ The proxy handler object has the following properties:
     * `req` - the [wreck] (https://github.com/hapijs/wreck) request to the upstream server.
 * `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, h, settings, ttl)` where:
     * `err` - internal or upstream error returned from attempting to contact the upstream proxy.
-    * `res` - the node response object received from the upstream service. `res` is a readable stream (use the [wreck](https://github.com/hapijs/wreck) module `read` method to easily convert it to a Buffer or string).
+    * `res` - the node response object received from the upstream service. `res` is a readable stream (use the [wreck](https://github.com/hapijs/wreck) module `read` method to easily convert it to a Buffer or string). Note that it is your responsibility to close the `res` stream.
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object).
     * `h` - the [response toolkit](https://hapijs.com/api#response-toolkit).
     * `settings` - the proxy handler configuration.
