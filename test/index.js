@@ -1964,9 +1964,17 @@ describe('h2o2', () => {
 
     it('propagates cancellation to upstream', { parallel: false }, async () => {
 
-        let propagated = false;
+        let notifyRequestReceived;
+        const upstreamRequestReceived = new Promise((resolve) => {
 
-        const nextTick = () => new Promise((resolve) => setTimeout(resolve, 50));
+            notifyRequestReceived = resolve;
+        });
+
+        let notifyRequestAborted;
+        const upstreamRequestAborted = new Promise((resolve) => {
+
+            notifyRequestAborted = resolve;
+        });
 
         const upstream = Hapi.server();
         upstream.route({
@@ -1974,9 +1982,11 @@ describe('h2o2', () => {
             path: '/cancellation',
             handler: function (request, h) {
 
+                notifyRequestReceived();
+
                 request.raw.req.once('aborted', () => {
 
-                    propagated = true;
+                    notifyRequestAborted(true);
                 });
 
                 return new Promise(() => {
@@ -1996,11 +2006,11 @@ describe('h2o2', () => {
         const req = promise.req;
         promise.catch(() => undefined);
 
-        await nextTick();
+        await upstreamRequestReceived;
         req.abort();
-        await nextTick();
+        const upstreamAborted = await upstreamRequestAborted;
 
-        expect(propagated).to.equal(true);
+        expect(upstreamAborted).to.equal(true);
 
         await server.stop();
         await upstream.stop();
