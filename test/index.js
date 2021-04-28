@@ -1961,4 +1961,48 @@ describe('h2o2', () => {
 
         expect(res.payload).to.equal('ok');
     });
+
+    it('propagates cancellation to upstream', { parallel: false }, async () => {
+
+        let propagated = false;
+
+        const nextTick = () => new Promise((resolve) => setTimeout(resolve, 50));
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'GET',
+            path: '/cancellation',
+            handler: function (request, h) {
+
+                request.raw.req.once('aborted', () => {
+
+                    propagated = true;
+                });
+
+                return new Promise(() => {
+
+                    return h.response('never resolves');
+                });
+            }
+        });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        await server.start();
+
+        const promise = Wreck.request('GET', `http://${server.info.host}:${server.info.port}/cancellation`);
+        const req = promise.req;
+        promise.catch(() => undefined);
+
+        await nextTick();
+        req.abort();
+        await nextTick();
+
+        expect(propagated).to.equal(true);
+
+        await server.stop();
+        await upstream.stop();
+    });
 });
