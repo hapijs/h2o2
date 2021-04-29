@@ -1981,10 +1981,7 @@ describe('h2o2', () => {
 
                 inboundRequest.abort();
 
-                return new Promise(() => {
-
-                    return h.response('never resolves');
-                });
+                return Hoek.block();
             }
         });
         await upstream.start();
