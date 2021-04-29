@@ -13,6 +13,7 @@ const Hoek = require('@hapi/hoek');
 const Inert = require('@hapi/inert');
 const Lab = require('@hapi/lab');
 const Wreck = require('@hapi/wreck');
+const { Team } = require('@hapi/teamwork');
 
 
 const internals = {};
@@ -1962,19 +1963,9 @@ describe('h2o2', () => {
         expect(res.payload).to.equal('ok');
     });
 
-    it('propagates cancellation to upstream', { parallel: false }, async () => {
+    it('propagates cancellation to upstream during pre-response stage', { parallel: false }, async () => {
 
-        let notifyRequestReceived;
-        const upstreamRequestReceived = new Promise((resolve) => {
-
-            notifyRequestReceived = resolve;
-        });
-
-        let notifyRequestAborted;
-        const upstreamRequestAborted = new Promise((resolve) => {
-
-            notifyRequestAborted = resolve;
-        });
+        const upstreamAborted = new Team({ meetings: 1, strict: true });
 
         const upstream = Hapi.server();
         upstream.route({
@@ -1982,12 +1973,12 @@ describe('h2o2', () => {
             path: '/cancellation',
             handler: function (request, h) {
 
-                notifyRequestReceived();
-
                 request.raw.req.once('aborted', () => {
 
-                    notifyRequestAborted(true);
+                    upstreamAborted.attend(true);
                 });
+
+                inboundRequest.abort();
 
                 return new Promise(() => {
 
@@ -2003,14 +1994,11 @@ describe('h2o2', () => {
         await server.start();
 
         const promise = Wreck.request('GET', `http://${server.info.host}:${server.info.port}/cancellation`);
-        const req = promise.req;
+        const inboundRequest = promise.req;
         promise.catch(() => undefined);
 
-        await upstreamRequestReceived;
-        req.abort();
-        const upstreamAborted = await upstreamRequestAborted;
-
-        expect(upstreamAborted).to.equal(true);
+        await expect(promise).to.reject(/socket hang up/);
+        expect(await upstreamAborted.work).to.equal(true);
 
         await server.stop();
         await upstream.stop();
