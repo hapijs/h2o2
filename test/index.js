@@ -4,6 +4,7 @@ const Fs = require('fs');
 const Http = require('http');
 const Net = require('net');
 const Zlib = require('zlib');
+const Stream = require('stream');
 
 const Boom = require('@hapi/boom');
 const Code = require('@hapi/code');
@@ -13,6 +14,7 @@ const Hoek = require('@hapi/hoek');
 const Inert = require('@hapi/inert');
 const Lab = require('@hapi/lab');
 const Wreck = require('@hapi/wreck');
+const { Team } = require('@hapi/teamwork');
 
 
 const internals = {};
@@ -1960,5 +1962,91 @@ describe('h2o2', () => {
         const res = await server.inject('/');
 
         expect(res.payload).to.equal('ok');
+    });
+
+    it('propagates cancellation to upstream during pre-response stage', { parallel: false }, async () => {
+
+        const upstreamAborted = new Team({ meetings: 1, strict: true });
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'GET',
+            path: '/cancellation',
+            handler: function (request, h) {
+
+                request.raw.req.once('aborted', () => {
+
+                    upstreamAborted.attend(true);
+                });
+
+                inboundRequest.abort();
+
+                return Hoek.block();
+            }
+        });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        await server.start();
+
+        const promise = Wreck.request('GET', `http://${server.info.host}:${server.info.port}/cancellation`);
+        const inboundRequest = promise.req;
+
+        await expect(promise).to.reject(/socket hang up/);
+        expect(await upstreamAborted.work).to.equal(true);
+
+        await server.stop();
+        await upstream.stop();
+    });
+
+    it('propagates cancellation to upstream during post-response stage', { parallel: false }, async () => {
+
+        const upstreamAborted = new Team({ meetings: 1, strict: true });
+        const downstreamReceived = new Team({ meetings: 1, strict: true });
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'GET',
+            path: '/cancellation',
+            handler: function (request, h) {
+
+                request.raw.req.once('aborted', () => {
+
+                    upstreamAborted.attend(true);
+                });
+
+                const stream = new Stream.PassThrough();
+                stream.write('unterminated data');
+
+                setTimeout(async () => {
+
+                    await downstreamReceived.work;
+                    inboundRequest.abort();
+                }, 0);
+
+                return h.response(stream);
+            }
+        });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        await server.start();
+
+        const promise = Wreck.request('GET', `http://${server.info.host}:${server.info.port}/cancellation`);
+        const inboundRequest = promise.req;
+
+        const response = await promise;
+        expect(response.statusCode).to.equal(200);
+
+        downstreamReceived.attend();
+
+        expect(await upstreamAborted.work).to.equal(true);
+
+        await server.stop();
+        await upstream.stop();
     });
 });
