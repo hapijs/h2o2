@@ -1385,6 +1385,34 @@ describe('h2o2', () => {
         await upstream.stop();
     });
 
+    it('proxies via uri template with query string', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'GET',
+            path: '/item',
+            handler: function (request, h) {
+
+                return h.response({ qs: request.query });
+            }
+        });
+
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item{query}' } } });
+        await server.start();
+
+        const res = await server.inject('/handlerTemplate?foo=bar');
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.contain('"qs":{"foo":"bar"}');
+
+        await server.stop();
+        await upstream.stop();
+    });
+
     it('passes upstream caching headers', async () => {
 
         const upstream = Hapi.server();
