@@ -2019,7 +2019,7 @@ describe('h2o2', () => {
         server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
         await server.start();
 
-        const promise = Wreck.request('GET', `http://${server.info.host}:${server.info.port}/cancellation`);
+        const promise = Wreck.request('GET', `http://localhost:${server.info.port}/cancellation`);
         const inboundRequest = promise.req;
 
         await expect(promise).to.reject(/socket hang up/);
@@ -2064,7 +2064,7 @@ describe('h2o2', () => {
         server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
         await server.start();
 
-        const promise = Wreck.request('GET', `http://${server.info.host}:${server.info.port}/cancellation`);
+        const promise = Wreck.request('GET', `http://localhost:${server.info.port}/cancellation`);
         const inboundRequest = promise.req;
 
         const response = await promise;
