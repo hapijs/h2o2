@@ -5,6 +5,7 @@ const Http = require('http');
 const Net = require('net');
 const Zlib = require('zlib');
 const Stream = require('stream');
+const Url = require('url');
 
 const Boom = require('@hapi/boom');
 const Code = require('@hapi/code');
@@ -31,6 +32,8 @@ describe('h2o2', () => {
         cert: '-----BEGIN CERTIFICATE-----\nMIIC+zCCAeOgAwIBAgIJANnDRcmEqJssMA0GCSqGSIb3DQEBBQUAMBQxEjAQBgNV\nBAMMCWxvY2FsaG9zdDAeFw0xNzA5MTIyMjMxMDRaFw0yNzA5MTAyMjMxMDRaMBQx\nEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\nggEBANyAxc8aKyjvMVngjqLLitaQj6E1DJYTpIrOKVjvQiwr9KNEO8lAmZR8z2Fj\nOPfkJlnubt125da4ZBbKHmKMB9W7bOa+h2PMWB3sb1PusxMsTlOEOz+xF5BX1uYe\n1rDurmhMhAVXZ4kyIyuHPIc48u4eoTSLzPpBAAMtVBWrTCpjsLKeGbOPqApkuGT5\nSLQDG0b/+GuQwqKZbjku1jfFMMCes0a2PGVRZ5Cj04X5Z8ImiMtkIRoE8CwDSFJV\nj0DIfiyx51eejTpY9VVDtNxvqSsUyemZH2Hn2g+NRM+Ij3O58oOIg46p6hV/o2Di\n0aApLc7WHfU+N0oG9rH4K5WNBDcCAwEAAaNQME4wHQYDVR0OBBYEFJBSho+nF530\nsxpoBxYqD/ynn/t0MB8GA1UdIwQYMBaAFJBSho+nF530sxpoBxYqD/ynn/t0MAwG\nA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAJFAh3X5CYFAl0cI6Q7Vcp4H\nO0S8s/C4FHNIsyUu54NcRH3taUwn3Fshn5LiwaEdFmouALbxMaejvEVw7hVBtY9X\nOjqt0mZ6+X6GOFhoUvlaG1c7YLOk5x51TXchg8YD2wxNXS0rOrAdZaScOsy8Q62S\nHehBJMN19JK8TiR3XXzxKVNcFcg0wyQvCGgjrHReaUF8WePfWHtZDdP01kBmMEIo\n6wY7E3jFqvDUs33vTOB5kmWixIoJKmkgOVmbgchmu7z27n3J+fawNr2r4IwjdUpK\nc1KvFYBXLiT+2UVkOJbBZ3C8mKfhXKHs2CrI3cSa4+E0sxTy4joG/yzlRs5l954=\n-----END CERTIFICATE-----\n'
     };
 
+    const getUri = ({ protocol, address, port }) => Url.format({ protocol, hostname: address, port });
+
     it('overrides maxSockets', { parallel: false }, async () => {
 
         let maxSockets;
@@ -46,7 +49,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', httpClient, maxSockets: 213 } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'anything', httpClient, maxSockets: 213 } } });
         await server.inject('/');
         expect(maxSockets).to.equal(213);
     });
@@ -66,7 +69,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', httpClient, maxSockets: false } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'anything', httpClient, maxSockets: false } } });
         await server.inject('/');
         expect(agent).to.equal(undefined);
     });
@@ -85,7 +88,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true } } });
+        server.route({ method: 'GET', path: '/profile', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, xforward: true, passThrough: true } } });
         server.state('auto', { autoValue: 'xyz' });
 
         const response = await server.inject('/profile');
@@ -116,7 +119,7 @@ describe('h2o2', () => {
             path: '/',
             options: {
                 payload: { parse: false },
-                handler: (request, h) => h.proxy({ host: 'localhost', port: upstream.info.port })
+                handler: (request, h) => h.proxy({ host: upstream.info.address, port: upstream.info.port })
             }
         });
 
@@ -229,7 +232,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http' } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, protocol: 'http' } } });
 
         const res = await server.inject('/');
         expect(res.statusCode).to.equal(200);
@@ -256,7 +259,7 @@ describe('h2o2', () => {
         const server = Hapi.server({ routes: { cors: true } });
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+        server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true } } });
 
         const res = await server.inject({
             url: '/headers',
@@ -295,7 +298,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, onResponse } } });
+        server.route({ method: 'GET', path: '/headers', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true, onResponse } } });
 
         const res = await server.inject({ url: '/headers', headers: { 'accept-encoding': 'gzip' } });
         expect(res.statusCode).to.equal(200);
@@ -318,7 +321,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+        server.route({ method: 'GET', path: '/gzip', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true } } });
 
         const zipped = await Zlib.gzipSync(Buffer.from('123456789012345678901234567890123456789012345678901234567890'));
         const res = await server.inject({ url: '/gzip', headers: { 'accept-encoding': 'gzip' } });
@@ -344,7 +347,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/gzipstream', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true } } });
+        server.route({ method: 'GET', path: '/gzipstream', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true } } });
 
         const res = await server.inject({ url: '/gzipstream', headers: { 'accept-encoding': 'gzip' } });
         const file = Fs.readFileSync(__dirname + '/../package.json', { encoding: 'utf8' });
@@ -373,7 +376,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/noHeaders', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'GET', path: '/noHeaders', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
 
         const res = await server.inject('/noHeaders');
         expect(res.statusCode).to.equal(200);
@@ -403,7 +406,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
+        server.route({ method: 'GET', path: '/item', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, protocol: 'http:' } }, config: { cache: { expiresIn: 500 } } });
 
         const response = await server.inject('/item');
         expect(response.statusCode).to.equal(200);
@@ -431,7 +434,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'POST', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'POST', path: '/item', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
 
         const res = await server.inject({ url: '/item', method: 'POST' });
         expect(res.statusCode).to.equal(201);
@@ -454,7 +457,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/unauthorized', handler: { proxy: { host: 'localhost', port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
+        server.route({ method: 'GET', path: '/unauthorized', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } }, config: { cache: { expiresIn: 500 } } });
 
         const res = await server.inject('/unauthorized');
         expect(res.statusCode).to.equal(401);
@@ -470,7 +473,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'POST', path: '/notfound', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'POST', path: '/notfound', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
 
         const res = await server.inject('/notfound');
         expect(res.statusCode).to.equal(404);
@@ -492,7 +495,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/onResponseError', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: onResponseWithError } } });
+        server.route({ method: 'GET', path: '/onResponseError', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, onResponse: onResponseWithError } } });
 
         const res = await server.inject('/onResponseError');
         expect(res.statusCode).to.equal(403);
@@ -514,7 +517,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, onResponse: on } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, onResponse: on } } });
 
         const res = await server.inject('/');
 
@@ -552,7 +555,7 @@ describe('h2o2', () => {
 
         const handler = {
             proxy: {
-                host: 'localhost',
+                host: upstream.info.address,
                 port: upstream.info.port,
                 onRequest: onRequestWithSocket,
                 onResponse: on
@@ -584,7 +587,7 @@ describe('h2o2', () => {
 
         const handler = {
             proxy: {
-                host: 'localhost',
+                host: upstream.info.address,
                 port: upstream.info.port,
                 onResponse: onResponseWithError
             }
@@ -617,7 +620,7 @@ describe('h2o2', () => {
 
                 const handler = {
                     proxy: {
-                        host: 'localhost',
+                        host: upstream.info.address,
                         port: upstream.info.port,
                         onResponse: onResponseWithError
                     }
@@ -655,7 +658,7 @@ describe('h2o2', () => {
 
                 const handler = {
                     proxy: {
-                        host: 'localhost',
+                        host: upstream.info.address,
                         port: upstream.info.port,
                         onResponse: onResponseWithError
                     }
@@ -694,7 +697,7 @@ describe('h2o2', () => {
 
                 const handler = {
                     proxy: {
-                        host: 'localhost',
+                        host: upstream.info.address,
                         port: upstream.info.port,
                         onResponse: onResponseWithError
                     }
@@ -733,7 +736,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: dummy.info.address, port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
         const res = await server.inject('/failureResponse');
         expect(res.statusCode).to.equal(502);
@@ -947,7 +950,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
         const res = await server.inject('/redirect?x=1');
         expect(res.statusCode).to.equal(502);
@@ -969,7 +972,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true, redirects: 2 } } });
 
         const res = await server.inject('/redirect?x=3');
         expect(res.statusCode).to.equal(502);
@@ -1019,7 +1022,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true, redirects: 2 } } });
         server.state('auto', { autoValue: 'xyz' });
 
         const res = await server.inject('/redirect');
@@ -1035,7 +1038,7 @@ describe('h2o2', () => {
 
         const redirectHandler = function (request, h) {
 
-            return h.response().header('Location', '//localhost:' + request.server.info.port + '/profile').code(302);
+            return h.response().header('Location', `${getUri(request.server.info)}/profile`).code(302);
         };
 
         const profile = function (request, h) {
@@ -1051,7 +1054,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: 'localhost', port: upstream.info.port, passThrough: true, redirects: 2 } } });
+        server.route({ method: 'GET', path: '/redirect', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true, redirects: 2 } } });
         server.state('auto', { autoValue: 'xyz' });
 
         const res = await server.inject('/redirect?x=2');
@@ -1088,7 +1091,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'POST', path: '/post1', handler: { proxy: { host: 'localhost', port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
+        server.route({ method: 'POST', path: '/post1', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, redirects: 3 } }, config: { payload: { output: 'stream' } } });
 
         const res = await server.inject({ method: 'POST', url: '/post1', payload: 'test', headers: { 'content-type': 'text/plain' } });
         expect(res.statusCode).to.equal(200);
@@ -1121,7 +1124,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 5 } } });
+        server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, timeout: 5 } } });
 
         const res = await server.inject('/timeout1');
         expect(res.statusCode).to.equal(504);
@@ -1153,7 +1156,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
 
         const res = await server.inject('/timeout2');
         expect(res.statusCode).to.equal(200);
@@ -1287,7 +1290,7 @@ describe('h2o2', () => {
         const server = Hapi.server({ routes: { timeout: { server: 8 } } });
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 2 } } });
+        server.route({ method: 'GET', path: '/timeout2', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, timeout: 2 } } });
         await server.start();
 
         const res = await server.inject('/timeout2');
@@ -1320,7 +1323,7 @@ describe('h2o2', () => {
         const server = Hapi.server({ routes: { timeout: { server: 5 } } });
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: 'localhost', port: upstream.info.port, timeout: 15 } } });
+        server.route({ method: 'GET', path: '/timeout1', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, timeout: 15 } } });
 
         const res = await server.inject('/timeout1');
         expect(res.statusCode).to.equal(503);
@@ -1345,7 +1348,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item' } } });
+        server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: `{protocol}://${getUri({ ...upstream.info, protocol: null })}/item` } } });
         await server.start();
 
         const res = await server.inject('/handlerTemplate');
@@ -1373,7 +1376,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item/{a}/{b}' } } });
+        server.route({ method: 'GET', path: '/handlerTemplate/{a}/{b}', handler: { proxy: { uri: `http://${getUri({ ...upstream.info, protocol: null })}/item/{a}/{b}` } } });
 
         const prma = 'foo';
         const prmb = 'bar';
@@ -1435,7 +1438,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/cachedItem', handler: { proxy: { host: 'localhost', port: upstream.info.port, ttl: 'upstream' } } });
+        server.route({ method: 'GET', path: '/cachedItem', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, ttl: 'upstream' } } });
         server.state('auto', { autoValue: 'xyz' });
         await server.start();
 
@@ -1458,7 +1461,11 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: { proxy: { host: upstream.address().address, port: upstream.address().port, ttl: 'upstream' } }
+        });
 
         const res = await server.inject('/');
         expect(res.statusCode).to.equal(200);
@@ -1480,7 +1487,11 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.address().port, ttl: 'upstream' } } });
+        server.route({
+            method: 'GET',
+            path: '/',
+            handler: { proxy: { host: upstream.address().address, port: upstream.address().port, ttl: 'upstream' } }
+        });
 
         const res = await server.inject('/');
         expect(res.statusCode).to.equal(200);
@@ -1542,7 +1553,7 @@ describe('h2o2', () => {
 
             return h.response({ something: 'else' });
         });
-        server.route({ method: 'GET', path: '/item', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'GET', path: '/item', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
 
         const res = await server.inject('/item');
         expect(res.statusCode).to.equal(200);
@@ -1565,7 +1576,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, acceptEncoding: true, passThrough: true } } });
 
         const res = await server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } });
         expect(res.statusCode).to.equal(200);
@@ -1588,7 +1599,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, acceptEncoding: false, passThrough: true } } });
 
         const res = await server.inject({ url: '/', headers: { 'accept-encoding': '*/*' } });
         expect(res.statusCode).to.be.within(200, 204);
@@ -1653,7 +1664,7 @@ describe('h2o2', () => {
             path: '/',
             handler: {
                 proxy: {
-                    host: 'localhost',
+                    host: upstream.info.address,
                     port: upstream.info.port,
                     passThrough: true
                 }
@@ -1689,7 +1700,7 @@ describe('h2o2', () => {
             path: '/',
             handler: {
                 proxy: {
-                    host: 'localhost',
+                    host: upstream.info.address,
                     port: upstream.info.port,
                     passThrough: true,
                     localStatePassThrough: true
@@ -1725,7 +1736,7 @@ describe('h2o2', () => {
             path: '/',
             handler: {
                 proxy: {
-                    host: 'localhost',
+                    host: upstream.info.address,
                     port: upstream.info.port,
                     passThrough: true
                 }
@@ -1753,7 +1764,7 @@ describe('h2o2', () => {
             path: '/',
             handler: {
                 proxy: {
-                    host: 'localhost',
+                    host: 'anything',
                     port: 8080,
                     passThrough: true
                 }
@@ -1784,7 +1795,7 @@ describe('h2o2', () => {
             path: '/',
             handler: {
                 proxy: {
-                    host: 'localhost',
+                    host: upstream.info.address,
                     port: upstream.info.port,
                     passThrough: true
                 }
@@ -1820,7 +1831,7 @@ describe('h2o2', () => {
             path: '/',
             handler: {
                 proxy: {
-                    host: 'localhost',
+                    host: upstream.info.address,
                     port: upstream.info.port,
                     passThrough: true
                 }
@@ -1858,7 +1869,7 @@ describe('h2o2', () => {
             path: '/',
             handler: function (request, h) {
 
-                return h.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+                return h.proxy({ host: upstream.info.address, port: upstream.info.port, xforward: true, passThrough: true });
             }
         });
 
@@ -1922,7 +1933,7 @@ describe('h2o2', () => {
             path: '/',
             handler: function (request, h) {
 
-                return h.proxy({ host: 'localhost', port: upstream.info.port, xforward: true, passThrough: true });
+                return h.proxy({ host: upstream.info.address, port: upstream.info.port, xforward: true, passThrough: true });
             }
         });
 
@@ -1955,7 +1966,7 @@ describe('h2o2', () => {
 
         const server = Hapi.server();
         await server.register({ plugin: H2o2, options });
-        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'localhost', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'anything', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
         let firstEvent = true;
         server.events.on('request', (request, event, tags) => {
@@ -1985,7 +1996,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/', handler: { proxy: { host: 'localhost', port: upstream.info.port, httpClient } } });
+        server.route({ method: 'GET', path: '/', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, httpClient } } });
 
         const res = await server.inject('/');
 
@@ -2016,10 +2027,10 @@ describe('h2o2', () => {
 
         const server = Hapi.server();
         await server.register(H2o2);
-        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
         await server.start();
 
-        const promise = Wreck.request('GET', `http://localhost:${server.info.port}/cancellation`);
+        const promise = Wreck.request('GET', `${getUri(server.info)}/cancellation`);
         const inboundRequest = promise.req;
 
         await expect(promise).to.reject(/socket hang up/);
@@ -2061,10 +2072,10 @@ describe('h2o2', () => {
 
         const server = Hapi.server();
         await server.register(H2o2);
-        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: 'localhost', port: upstream.info.port } } });
+        server.route({ method: 'GET', path: '/cancellation', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
         await server.start();
 
-        const promise = Wreck.request('GET', `http://localhost:${server.info.port}/cancellation`);
+        const promise = Wreck.request('GET', `${getUri(server.info)}/cancellation`);
         const inboundRequest = promise.req;
 
         const response = await promise;
