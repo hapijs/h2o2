@@ -1940,6 +1940,7 @@ describe('h2o2', () => {
         server.events.on('request', (request, event, tags) => {
 
             expect(Object.keys(event.data)).to.equal(['downstreamResponseTime']);
+            expect(event.data.downstreamResponseTime).to.be.a.number().and.greaterThan(0);
             expect(tags).to.equal({ h2o2: true, success: true });
         });
 
@@ -1975,6 +1976,7 @@ describe('h2o2', () => {
             if (firstEvent) {
                 firstEvent = false;
                 expect(Object.keys(event.data)).to.equal(['downstreamResponseTime']);
+                expect(event.data.downstreamResponseTime).to.be.a.number().and.greaterThan(0);
                 expect(tags).to.equal({ h2o2: true, error: true });
             }
         });
