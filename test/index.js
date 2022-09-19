@@ -1405,7 +1405,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: '{protocol}://localhost:' + upstream.info.port + '/item{query}' } } });
+        server.route({ method: 'GET', path: '/handlerTemplate', handler: { proxy: { uri: `{protocol}://${getUri({ ...upstream.info, protocol: null })}/item{query}` } } });
         await server.start();
 
         const res = await server.inject('/handlerTemplate?foo=bar');
@@ -1523,7 +1523,7 @@ describe('h2o2', () => {
         const server = Hapi.server();
         await server.register(H2o2);
 
-        server.route({ method: 'GET', path: '/304', handler: { proxy: { uri: 'http://localhost:' + upstream.info.port + '/item', onResponse: onResponse304 } } });
+        server.route({ method: 'GET', path: '/304', handler: { proxy: { uri: `${getUri(upstream.info)}/item`, onResponse: onResponse304 } } });
 
         const res = await server.inject('/304');
         expect(res.statusCode).to.equal(304);
@@ -1621,7 +1621,7 @@ describe('h2o2', () => {
                 throw new Error('placeholder');
             }
         };
-        server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://localhost', httpClient, passThrough: true } } });
+        server.route({ method: 'GET', path: '/test', handler: { proxy: { uri: 'http://anything', httpClient, passThrough: true } } });
         await server.inject({ method: 'GET', url: '/test', headers: { 'Content-Type': 'application/json' } });
     });
 
@@ -1639,7 +1639,7 @@ describe('h2o2', () => {
                 return { statusCode: 200 };
             }
         };
-        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://localhost', httpClient, agent } } });
+        server.route({ method: 'GET', path: '/agenttest', handler: { proxy: { uri: 'http://anything', httpClient, agent } } });
         await server.inject({ method: 'GET', url: '/agenttest', headers: {} }, (res) => { });
     });
 
@@ -1960,13 +1960,14 @@ describe('h2o2', () => {
         const dummy = Hapi.server();
         await dummy.start();
         const dummyPort = dummy.info.port;
-        await dummy.stop(Hoek.ignore);
+        const dummyHost = dummy.info.address;
+        await dummy.stop();
 
         const options = { downstreamResponseTime: true };
 
         const server = Hapi.server();
         await server.register({ plugin: H2o2, options });
-        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: 'anything', port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
+        server.route({ method: 'GET', path: '/failureResponse', handler: { proxy: { host: dummyHost, port: dummyPort, onResponse: failureResponse } }, config: { cache: { expiresIn: 500 } } });
 
         let firstEvent = true;
         server.events.on('request', (request, event, tags) => {
