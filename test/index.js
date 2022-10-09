@@ -889,6 +889,37 @@ describe('h2o2', () => {
         await upstream.stop();
     });
 
+    it('does not clobber existing transfer-encoding header', async () => {
+
+        const echoDeleteBody = function (request, h) {
+
+            return h.response(request.raw.req.headers['transfer-encoding']);
+        };
+
+        const mapUri = function (request) {
+
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}${request.path}${(request.url.search || '')}`,
+                headers: { 'transfer-encoding': 'gzip,chunked' }
+            };
+        };
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'DELETE', path: '/echo', handler: echoDeleteBody });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'DELETE', path: '/echo', handler: { proxy: { mapUri } } });
+
+        const res = await server.inject({ url: '/echo', method: 'DELETE' });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('gzip,chunked');
+
+        await upstream.stop();
+    });
+
     it('forwards on a POST body', async () => {
 
         const echoPostBody = function (request, h) {
@@ -914,6 +945,99 @@ describe('h2o2', () => {
         server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri } } });
 
         const res = await server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('true@');
+
+        await upstream.stop();
+    });
+
+    it('forwards on a DELETE body', async () => {
+
+        const echoDeleteBody = function (request, h) {
+
+            return h.response(request.payload.echo + request.raw.req.headers['x-super-special']);
+        };
+
+        const mapUri = function (request) {
+
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}${request.path}${(request.url.search || '')}`,
+                headers: { 'x-super-special': '@' }
+            };
+        };
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'DELETE', path: '/echo', handler: echoDeleteBody });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'DELETE', path: '/echo', handler: { proxy: { mapUri } } });
+
+        const res = await server.inject({ url: '/echo', method: 'DELETE', payload: '{"echo":true}' });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('true@');
+
+        await upstream.stop();
+    });
+
+    it('forwards on a PUT body', async () => {
+
+        const echoPutBody = function (request, h) {
+
+            return h.response(request.payload.echo + request.raw.req.headers['x-super-special']);
+        };
+
+        const mapUri = function (request) {
+
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}${request.path}${(request.url.search || '')}`,
+                headers: { 'x-super-special': '@' }
+            };
+        };
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'PUT', path: '/echo', handler: echoPutBody });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'PUT', path: '/echo', handler: { proxy: { mapUri } } });
+
+        const res = await server.inject({ url: '/echo', method: 'PUT', payload: '{"echo":true}' });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('true@');
+
+        await upstream.stop();
+    });
+
+    it('forwards on a PATCH body', async () => {
+
+        const echoPatchBody = function (request, h) {
+
+            return h.response(request.payload.echo + request.raw.req.headers['x-super-special']);
+        };
+
+        const mapUri = function (request) {
+
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}${request.path}${(request.url.search || '')}`,
+                headers: { 'x-super-special': '@' }
+            };
+        };
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'PATCH', path: '/echo', handler: echoPatchBody });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'PATCH', path: '/echo', handler: { proxy: { mapUri } } });
+
+        const res = await server.inject({ url: '/echo', method: 'PATCH', payload: '{"echo":true}' });
         expect(res.statusCode).to.equal(200);
         expect(res.payload).to.equal('true@');
 
