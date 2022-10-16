@@ -1044,6 +1044,38 @@ describe('h2o2', () => {
         await upstream.stop();
     });
 
+    it('uses the method returned from mapUri', async () => {
+
+        const echoPutBody = function (request, h) {
+
+            return h.response(request.payload.echo + request.raw.req.headers['x-super-special']);
+        };
+
+        const mapUri = function (request) {
+
+            return {
+                uri: `http://127.0.0.1:${upstream.info.port}${request.path}${(request.url.search || '')}`,
+                headers: { 'x-super-special': '@' },
+                method: 'PUT'
+            };
+        };
+
+        const upstream = Hapi.server();
+        upstream.route({ method: 'PUT', path: '/echo', handler: echoPutBody });
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'POST', path: '/echo', handler: { proxy: { mapUri } } });
+
+        const res = await server.inject({ url: '/echo', method: 'POST', payload: '{"echo":true}' });
+        expect(res.statusCode).to.equal(200);
+        expect(res.payload).to.equal('true@');
+
+        await upstream.stop();
+    });
+
     it('replies with an error when it occurs in mapUri', async () => {
 
         const mapUriWithError = function (request) {
