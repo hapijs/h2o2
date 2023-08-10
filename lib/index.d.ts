@@ -66,7 +66,7 @@ declare namespace h2o2 {
      */
     passThrough?: boolean | undefined;
     /**
-     * if set tofalse, any locally defined state is removed from incoming
+     * if set to false, any locally defined state is removed from incoming
      * requests before being sent to the upstream service. This value can be
      * overridden on a per state basis via the server.state()``passThrough
      * option.
@@ -125,7 +125,7 @@ declare namespace h2o2 {
      * together with `host`, `port`, `protocol`, or `uri`.
      * @param request - is the incoming request object.
      */
-    mapUri?: ((this: ProxyHandlerOptions, request: Request) => Promise<ProxyTarget>) | undefined;
+    mapUri?: ((this: ProxyHandlerOptions, request: Request) => ProxyTarget | Promise<ProxyTarget>) | undefined;
     /**
      * a custom function which is passed the upstream request.
      * @param req - the [wreck] (https://github.com/hapijs/wreck) request to the upstream server.
