@@ -47,6 +47,7 @@ The proxy handler object has the following properties:
     * `request` - is the incoming [request object](http://hapijs.com/api#request-object). The response from this function should be an       object with the following properties:
         * `uri` - the absolute proxy URI.
         * `headers` - optional object where each key is an HTTP request header and the value is the header content.
+        * `method` - optional HTTP method to use when making request to upstream server.
 * `onRequest` - a custom function which is passed the upstream request.  Function signature is `function (req)` where:
     * `req` - the [wreck] (https://github.com/hapijs/wreck) request to the upstream server.
 * `onResponse` - a custom function for processing the response from the upstream service before sending to the client. Useful for custom error handling of responses from the proxied endpoint or other payload manipulation. Function signature is `function (err, res, request, h, settings, ttl)` where:
