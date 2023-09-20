@@ -2215,4 +2215,88 @@ describe('h2o2', () => {
         await server.stop();
         await upstream.stop();
     });
+
+    it('propagates the allow header in case of 405 (with passthrough)', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'POST',
+            path: '/item',
+            handler(request, h) {
+
+                throw Boom.methodNotAllowed('Not allowed', {}, ['GET']);
+            }
+        });
+
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'POST', path: '/item', handler: { proxy: { host: upstream.info.address, port: upstream.info.port, passThrough: true } } });
+        await server.start();
+
+        const res = await server.inject({ method: 'POST', url: '/item' });
+        expect(res.statusCode).to.equal(405);
+        expect(res.headers.allow).to.equal('GET');
+
+        await server.stop();
+        await upstream.stop();
+    });
+
+    it('propagates the allow header in case of 405 (without passthrough)', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'POST',
+            path: '/item',
+            handler(request, h) {
+
+                throw Boom.methodNotAllowed('Not allowed', {}, ['GET']);
+            }
+        });
+
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'POST', path: '/item', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
+        await server.start();
+
+        const res = await server.inject({ method: 'POST', url: '/item' });
+        expect(res.statusCode).to.equal(405);
+        expect(res.headers.allow).to.equal('GET');
+
+        await server.stop();
+        await upstream.stop();
+    });
+
+    it('does not propagate a missing allow header in case of malformed 405', async () => {
+
+        const upstream = Hapi.server();
+        upstream.route({
+            method: 'POST',
+            path: '/item',
+            handler(request, h) {
+
+                throw Boom.methodNotAllowed('Not allowed');
+            }
+        });
+
+        await upstream.start();
+
+        const server = Hapi.server();
+        await server.register(H2o2);
+
+        server.route({ method: 'POST', path: '/item', handler: { proxy: { host: upstream.info.address, port: upstream.info.port } } });
+        await server.start();
+
+        const res = await server.inject({ method: 'POST', url: '/item' });
+        expect(res.statusCode).to.equal(405);
+        expect(res.headers.allow).to.not.exist();
+
+        await server.stop();
+        await upstream.stop();
+    });
 });
