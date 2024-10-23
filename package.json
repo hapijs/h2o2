@@ -31,10 +31,10 @@
   },
   "devDependencies": {
     "@hapi/code": "^9.0.3",
-    "@hapi/eslint-plugin": "*",
+    "@hapi/eslint-plugin": "^7.0.0",
     "@hapi/hapi": "^21.3.2",
     "@hapi/inert": "^7.1.0",
-    "@hapi/lab": "^25.1.2",
+    "@hapi/lab": "^26.0.0",
     "@hapi/teamwork": "^6.0.0",
     "@types/node": "^14.18.48",
     "joi": "^17.9.2",
